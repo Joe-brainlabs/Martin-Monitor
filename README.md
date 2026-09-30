@@ -48,13 +48,15 @@ fetch_tweets.py      the original standalone tweet downloader; kept for backfill
 The service runs as one always-on container from the `Dockerfile`. Every push to `main` redeploys.
 
 1. Railway project, New service, GitHub repo `Joe-brainlabs/Martin-Monitor`, branch `main`.
-2. Variables: paste the contents of your `.env`, and set `DATA_DIR=/data`.
+2. Variables: paste the contents of your `.env`, and add `DATA_DIR=/data` and `PORT=8000` (so the app listens where the domain points).
 3. Volume: from the project canvas (not the service settings), right-click the service and choose Attach Volume, or use + Create, Volume. Mount path `/data`. The SQLite file lives there and survives deploys.
 4. Service Settings, Deploy: set Healthcheck Path to `/health`. Leave Serverless off (the scheduler needs the process running) and Cron Schedule empty.
 5. Service Settings, Networking, Generate Domain. That URL is production.
 6. Check `https://<domain>/health`, then open the domain.
 
 Railway's config-as-code (`railway.toml`) is deprecated and new services cannot opt in, so those settings live in the dashboard.
+
+MSE's Cloudflare refuses requests from datacentre IPs such as Railway's (403). The RSS feed and forum API still work; article and guide pages are fetched through Decodo's residential scraping API when the direct request is refused, about ten requests a day.
 
 Secrets live only in `.env` locally and in Railway's Variables. Nothing is hard-coded, and API keys never appear in error messages (query strings are stripped before logging).
 

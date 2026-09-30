@@ -117,9 +117,11 @@ def upsert_items(con: sqlite3.Connection, items) -> int:
     for item in items:
         row = item.to_row(now)
         existing = con.execute(
-            "SELECT id, metrics_json FROM items WHERE source = ? AND external_id = ?",
+            "SELECT id, metrics_json, text FROM items WHERE source = ? AND external_id = ?",
             (row["source"], row["external_id"]),
         ).fetchone()
+        if existing is not None and row["text"] and (existing["text"] or "").startswith("(article fetch failed") and not row["text"].startswith("(article fetch failed"):
+            con.execute("UPDATE items SET text = ?, metrics_json = COALESCE(?, metrics_json) WHERE id = ?", (row["text"], row["metrics_json"], existing["id"]))
         if existing is None:
             con.execute(
                 """INSERT INTO items (source, kind, external_id, author, title, text, url, published_at,

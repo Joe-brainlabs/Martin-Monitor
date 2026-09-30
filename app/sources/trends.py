@@ -9,7 +9,7 @@ import httpx
 from .. import db
 from ..config import BROWSER_UA, env
 
-ENDPOINT = "https://scraper-api.decodo.com/v2/scrape"
+from .base import DECODO_ENDPOINT as ENDPOINT
 MONTHS = {m: i for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1)}
 
 

@@ -177,7 +177,7 @@ Put every key in `.env` locally (already gitignored) and in Railway's variables 
 
 - **X billing on empty polls.** Watch the credit balance across a day of 15-minute polls. If empty polls cost money, drop to 30 minutes.
 - **EnsembleData trial.** Confirm the trial accepts a Brainlabs email and that `instagram/user/posts` returns for @martinlewismse.
-- **MSE from Railway.** Cloudflare passed my laptop's Python requests. Check it passes Railway's on the first deploy.
+- **MSE from Railway.** Checked on the first deploy (30 September): Cloudflare returns 403 to Railway's IP for article and guide pages, while the RSS feed and forum API pass. Fixed by fetching refused pages through Decodo's universal target (residential IPs), roughly ten requests a day.
 - **YouTube transcripts.** The library is unofficial. If it breaks, Brian reads titles and descriptions and we lose little.
 - **Decodo geo.** Ask Decodo support (live chat in the dashboard) why `geo` is rejected on `google_trends_explore` when their own example uses it. Send them the failing request: `{"target":"google_trends_explore","query":"energy price cap","geo":"GB"}` returns 400 Validation failed, and the same body without `geo` returns 200. Decided 30 September: we go global. The Trends module stores Decodo's worldwide series, and the chart labels it as worldwide so nobody mistakes it for UK-only. The query set leans on UK-specific phrasing to keep the lines meaningful. The module still takes a provider switch in case Decodo fixes `geo` or we want SerpApi later. Hourly granularity is also unconfirmed: Decodo returned daily points for a 7-day window.
 

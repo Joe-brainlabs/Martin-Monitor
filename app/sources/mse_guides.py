@@ -3,14 +3,14 @@
 import difflib
 
 from .. import db
-from .base import Item, http_get, inner, sha1, strip_html
+from .base import Item, fetch_page, inner, sha1, strip_html
 
 
 def fetch(con, cfg: dict) -> list[Item]:
     items, failures = [], []
     for url in cfg["urls"]:
         try:
-            page = http_get(url).text
+            page = fetch_page(url)
         except Exception as exc:
             failures.append(f"{url}: {exc}"[:200])
             continue

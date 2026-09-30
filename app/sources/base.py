@@ -12,7 +12,9 @@ from xml.etree import ElementTree
 
 import httpx
 
-from ..config import BROWSER_UA, SOURCES
+from ..config import BROWSER_UA, SOURCES, env
+
+DECODO_ENDPOINT = "https://scraper-api.decodo.com/v2/scrape"
 
 
 @dataclass
@@ -57,6 +59,32 @@ def http_get(url: str, params: dict | None = None, headers: dict | None = None, 
         detail = f": {response.text[:200]}" if ("json" in ctype or "text/plain" in ctype) else ""
         raise RuntimeError(f"HTTP {response.status_code} from {response.url.copy_with(query=None)}{detail}")
     return response
+
+
+def decodo_page(url: str) -> str:
+    """HTML for a URL through Decodo's Web Scraping API (universal target, residential IPs)."""
+    response = httpx.post(
+        DECODO_ENDPOINT,
+        json={"target": "universal", "url": url},
+        auth=(env("DECODO_USERNAME"), env("DECODO_PASSWORD")),
+        headers={"User-Agent": BROWSER_UA},
+        timeout=120,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"Decodo returned HTTP {response.status_code} for {url}: {response.text[:120]}")
+    content = response.json()["results"][0]["content"]
+    return content if isinstance(content, str) else json.dumps(content)
+
+
+def fetch_page(url: str) -> str:
+    """HTML for a page. Direct first; MSE's Cloudflare refuses datacentre IPs (Railway) with a 403,
+    so on 403 we go through Decodo when its credentials are present."""
+    try:
+        return http_get(url).text
+    except RuntimeError as exc:
+        if "HTTP 403" not in str(exc) or not (env("DECODO_USERNAME") and env("DECODO_PASSWORD")):
+            raise
+    return decodo_page(url)
 
 
 def to_iso(value: str | None) -> str | None:
