@@ -1,6 +1,7 @@
 """Reddit via EnsembleData's subreddit endpoint (its keyword search endpoint does not exist).
-We page through each subreddit's newest posts and keep those that mention Martin or MSE, or that
-match a CTM topic. About two units a page; a few pages a day per subreddit."""
+We page through each subreddit's newest posts and keep those that mention Martin or MSE. A post that
+only matches a CTM category keyword is kept when it is loud (score or comments above the thresholds
+in sources.yaml), so the feed carries demand signals without every credit-card question on the sub."""
 
 import datetime as dt
 
@@ -28,7 +29,8 @@ def fetch(con, cfg: dict) -> list[Item]:
                 blob = f"{p.get('title') or ''} {p.get('selftext') or ''}"
                 mentioned = mentions(blob, mention_terms)
                 topics = tag_topics(blob)
-                if not mentioned and not topics:
+                loud = (p.get("score") or 0) >= cfg.get("min_score", 20) or (p.get("num_comments") or 0) >= cfg.get("min_comments", 20)
+                if not mentioned and not (topics and loud):
                     continue
                 created = p.get("created_utc")
                 items.append(

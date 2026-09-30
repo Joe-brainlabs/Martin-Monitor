@@ -364,5 +364,32 @@ def backfill(
         con.close()
 
 
+@app.post("/api/prune/reddit")
+def prune_reddit(x_admin_token: str | None = Header(default=None)):
+    """Remove stored Reddit posts that the current keep-rule would not have kept."""
+    _require_admin(x_admin_token)
+    cfg = REGISTRY["reddit"].cfg
+    con = db.connect()
+    try:
+        ids = [
+            r["id"] for r in con.execute(
+                """SELECT id FROM items WHERE source = 'reddit'
+                   AND COALESCE(json_extract(metrics_json, '$.mentions_martin'), 0) = 0
+                   AND COALESCE(json_extract(metrics_json, '$.score'), 0) < ?
+                   AND COALESCE(json_extract(metrics_json, '$.comments'), 0) < ?""",
+                (cfg.get("min_score", 20), cfg.get("min_comments", 20)),
+            )
+        ]
+        for start in range(0, len(ids), 500):
+            batch = ids[start:start + 500]
+            marks = ",".join("?" * len(batch))
+            con.execute(f"DELETE FROM metric_snapshots WHERE item_id IN ({marks})", batch)
+            con.execute(f"DELETE FROM items WHERE id IN ({marks})", batch)
+        con.commit()
+        return {"removed": len(ids)}
+    finally:
+        con.close()
+
+
 # The UI last, so /api and /health win. StaticFiles handles path containment itself.
 app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")

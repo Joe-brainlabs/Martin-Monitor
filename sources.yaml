@@ -50,6 +50,10 @@ reddit:
   period: day
   pages: 3                  # 25 posts a page, about 2 EnsembleData units a page
   mention_terms: [martin lewis, moneysavingexpert, money saving expert, mse]
+  # Posts that mention Martin or MSE are always kept. A post that only matches a CTM category keyword is
+  # kept when it is loud enough to count as a demand signal:
+  min_score: 20
+  min_comments: 20
 
 youtube:
   every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence

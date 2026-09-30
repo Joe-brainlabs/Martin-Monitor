@@ -24,7 +24,7 @@ cp .env.example .env        # then fill in the keys you have; sources with no ke
 | `mse_news` | MSE news RSS, each new article fetched for its text | daily for now | none |
 | `mse_forum` | Six MSE forum boards via the public Vanilla API | daily for now | none |
 | `press` | Google News and Bing News RSS for "Martin Lewis" | daily for now | none |
-| `reddit` | Newest posts in r/UKPersonalFinance and r/AskUK that mention Martin or MSE or match a CTM topic, via EnsembleData | daily for now | `ENSEMBLE_TOKEN` |
+| `reddit` | Newest posts in r/UKPersonalFinance and r/AskUK that mention Martin or MSE, plus loud posts (20+ points or comments) on a CTM topic, via EnsembleData | daily for now | `ENSEMBLE_TOKEN` |
 | `youtube` | Martin's channel uploads and view counts | daily for now | `YOUTUBE_API_KEY` |
 | `trends` | Google Trends, worldwide, via Decodo | daily | `DECODO_USERNAME`, `DECODO_PASSWORD` |
 | `mse_guides` | Six MSE guide pages, diffed on change | daily for now | none |
@@ -56,6 +56,9 @@ curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<domain>/api/run/trends
 curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/x?handle=MartinSLewis&max=800"
 curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/x?handle=MoneySavingExp&max=200"
 curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/instagram?max=50"
+
+# drop stored Reddit posts the current keep-rule would not keep (after tightening sources.yaml)
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<domain>/api/prune/reddit
 ```
 
 The X backfill excludes replies by default so every paid tweet is kept; add `&replies=own` to keep his thread continuations (pays for replies to other people too, which are then dropped). Use a long random `ADMIN_TOKEN`: anyone who guesses it can spend X credits.
