@@ -73,7 +73,7 @@ martin-monitor/
       context.md       what Brian knows about CTM's business (we write this together)
   ui/                  index.html, app.js, styles.css (tokens copied from ctm-dashboard)
   sources.yaml         handles, URLs, query terms, cadences
-  Dockerfile, railway.toml, .env.example, README.md
+  Dockerfile, .env.example, README.md   (Railway settings live in its dashboard; config-as-code is deprecated)
 ```
 
 Every source module has the same contract: `fetch(since) -> list[Item]`. The scheduler calls it, dedupes on `(source, external_id)`, stores new rows, records the run. Adding a source later is one file and one line in `sources.yaml`.

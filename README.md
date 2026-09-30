@@ -49,9 +49,12 @@ The service runs as one always-on container from the `Dockerfile`. Every push to
 
 1. Railway project, New service, GitHub repo `Joe-brainlabs/Martin-Monitor`, branch `main`.
 2. Variables: paste the contents of your `.env`, and set `DATA_DIR=/data`.
-3. Volumes: add one, mount path `/data`. The SQLite file lives there and survives deploys.
-4. Settings, Networking, Generate Domain. That URL is production.
-5. Check `https://<domain>/health`, then open the domain.
+3. Volume: from the project canvas (not the service settings), right-click the service and choose Attach Volume, or use + Create, Volume. Mount path `/data`. The SQLite file lives there and survives deploys.
+4. Service Settings, Deploy: set Healthcheck Path to `/health`. Leave Serverless off (the scheduler needs the process running) and Cron Schedule empty.
+5. Service Settings, Networking, Generate Domain. That URL is production.
+6. Check `https://<domain>/health`, then open the domain.
+
+Railway's config-as-code (`railway.toml`) is deprecated and new services cannot opt in, so those settings live in the dashboard.
 
 Secrets live only in `.env` locally and in Railway's Variables. Nothing is hard-coded, and API keys never appear in error messages (query strings are stripped before logging).
 
