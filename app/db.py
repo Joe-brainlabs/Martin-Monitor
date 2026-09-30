@@ -124,8 +124,12 @@ def upsert_items(con: sqlite3.Connection, items) -> int:
             "SELECT id, metrics_json, text FROM items WHERE source = ? AND external_id = ?",
             (row["source"], row["external_id"]),
         ).fetchone()
-        if existing is not None and row["text"] and (existing["text"] or "").startswith("(article fetch failed") and not row["text"].startswith("(article fetch failed"):
-            con.execute("UPDATE items SET text = ?, metrics_json = COALESCE(?, metrics_json) WHERE id = ?", (row["text"], row["metrics_json"], existing["id"]))
+        # A later fetch can carry fuller text: an article that was refused before, or an X long post that
+        # arrived truncated before we asked for note_tweet. Take the longer, real text.
+        if existing is not None and row["text"] and not row["text"].startswith("(article fetch failed"):
+            old_text = existing["text"] or ""
+            if old_text.startswith("(article fetch failed") or len(row["text"]) > len(old_text):
+                con.execute("UPDATE items SET text = ? WHERE id = ?", (row["text"], existing["id"]))
         if existing is None:
             con.execute(
                 """INSERT INTO items (source, kind, external_id, author, title, text, url, published_at,
