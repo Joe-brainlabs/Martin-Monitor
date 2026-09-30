@@ -54,6 +54,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 28px 60px; }
 .pill--mse_forum { background: #fff4d6; color: #8a5a00; }
 .pill--press { background: #f3e6ff; color: var(--purple, #892bf7); }
 .pill--instagram { background: #fde7f3; color: #b0186e; }
+.pill--reddit { background: #ffe9dc; color: #c2410c; }
 .pill--youtube { background: #ffe6e6; color: #b3261e; }
 .item__title { font-size: 15px; font-weight: 700; margin: 6px 0 2px; }
 .item__text { font-size: 14px; color: #2a2f4a; white-space: pre-line; overflow-wrap: anywhere; }

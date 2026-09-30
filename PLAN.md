@@ -37,7 +37,7 @@ The cadences below are the target. Current setting (Joe, 30 September): X every 
 | 7 | National press | Google News RSS (`news.google.com/rss/search?q="Martin Lewis"&hl=en-GB&gl=GB&ceid=GB:en`) plus Bing News RSS for a second net. Publisher name comes with each item | Hourly | Free | None | Both tested and returning fresh Martin Lewis stories |
 | 8 | Google Trends (6 GB queries) | Decodo Web Scraping API, `google_trends_explore` target, one request per query with `geo: GB`. Six requests a day for the 90-day view. During a spike, hourly requests for the affected term over 7 days | Daily, hourly during a spike | Decodo's free plan includes 2,000 requests, then Starter at $19 a month. We need roughly 200 to 400 a month | Decodo scraper username and password (have them) | Tested and working: returns interest over time (weekly across 12 months, or daily inside a `date_start`/`date_end` window), a region breakdown and related queries. One problem: every `geo` value is rejected with a validation error, including the vendor's own `US` example, so the series is worldwide rather than GB. See Part 7 |
 | 9 | YouTube (Martin's channel and Money Show clips) | YouTube Data API v3: uploads playlist `UU5CDoveqvEuQsW3x-DnYtww`, `videos.list` for view counts, `commentThreads.list` for top comments. Transcripts through `youtube-transcript-api` so Brian can read what he said | Twice daily | Free (10,000 quota units a day, we use under 100) | Google Cloud API key (have it) | Key tested: channel lookup returned the Martin Lewis channel, 226k subscribers, 430 videos. Transcript library is unofficial |
-| 10 | Reddit (r/UKPersonalFinance, r/AskUK) | Official Reddit API through PRAW: `subreddit.search("Martin Lewis", sort="new")` plus new posts in each subreddit filtered for product terms | Hourly | Free (100 requests a minute) | Reddit "script" app id and secret | Well-known API, untested here |
+| 10 | Reddit (r/UKPersonalFinance, r/AskUK) | EnsembleData `reddit/subreddit/posts` (newest, three pages a subreddit), kept when a post mentions Martin or MSE or matches a CTM topic. Its keyword-search endpoint does not exist | Daily for now | About 12 Ensemble units a day, inside the trial | EnsembleData token (have it) | Built and tested 30 September: 21 posts on the first pull |
 
 ### Notes on the awkward ones
 
@@ -51,7 +51,7 @@ The cadences below are the target. Current setting (Joe, 30 September): X every 
 
 **Press.** The table proposed Meltwater or Infegy. Brainlabs does hold Infegy, but under other clients' contracts (it appears in the UUSA statements of work), and Google News RSS already returns the Mirror, Metro, Express, Yahoo and regional titles for free. Not worth the ask for a pitch.
 
-**Reddit.** EnsembleData can do Reddit too, but two subreddits polled hourly would use up the trial units we need for Instagram. Decodo has Reddit Subreddit and Post targets as well. The official Reddit API is free and fine for this volume, so it stays the first choice, with Decodo as the ready fallback. If we later pay for EnsembleData, move Reddit and YouTube onto it and drop two keys.
+**Reddit.** Built on EnsembleData in the end, because we already hold the token and the daily cadence keeps it to about 12 units a day alongside Instagram. If we go back to hourly polling, switch to the official Reddit API (free, needs a script app) or Decodo's Reddit targets; the module is 60 lines either way. If we later pay for EnsembleData, move Reddit and YouTube onto it and drop two keys.
 
 ## Part 2: hosting and plumbing
 
@@ -146,7 +146,7 @@ Each phase leaves something you can show.
 | Phase | Time | What gets built | Demoable result |
 |---|---|---|---|
 | 0 | Done 30 Sep | Repo skeleton, SQLite, scheduler, pollers for all eight sources (X, Instagram, MSE news, MSE forum, press, YouTube, Trends, guide changes), feed page, Dockerfile and Railway config. First run stored 33 tweets, 10 Instagram posts, 20 articles, 300 threads, 104 press stories, 25 videos and 504 trend points | A live feed from every source on Joe's laptop, ready to deploy |
-| 1 | Half a day | Railway deploy with volume and health checks. Reddit poller. Engagement re-reads for velocity. Backfill: 1,000 tweets, last 50 Instagram posts, 30 days of news | The same feed on a public URL, updating itself, with history |
+| 1 | Done 30 Sep, bar the production backfill | Railway deploy with volume and health checks (Joe). Reddit poller. X engagement re-reads at 1, 6 and 24 hours. Backfill endpoints behind the admin token for X and Instagram; MSE news and press already reach back a month from their feeds | The same feed on a public URL, updating itself; history once the backfill commands are run |
 | 2 | One day | The real UI: hero, feed with filters and chain markers, demand chart, spread panel, CTM tokens. Iframe into the CTM dashboard's Martin Monitor page | The page you would show a client |
 | 3 | One day | Brian: `context.md` written with Joe, scheduled insights with the schema, Ask Brian streaming, prompt tuning against the backfilled month | Brian reading real signals and answering questions live |
 | 4 | Half a day | Polish, freshness indicators, spend caps, security pass with `bl-vibe-code-security-guardrails`, README, Vibe Coding Log entry | Ready for the pitch |
@@ -165,7 +165,7 @@ In the order we need them.
 | 4 | GitHub repo | Done. `github.com/Joe-brainlabs/Martin-Monitor` (remote `origin` in this folder) | Done | Free | Code and deploys |
 | 5 | EnsembleData free trial token | Done (30 Sep) | Done | Free (50 units a day). $100 a month only if we add comments | Instagram |
 | 6 | Google Cloud API key with YouTube Data API v3 enabled | Done. The key is from the "Anomaly Checker" project in Joe's Google Cloud console | Done | Free | YouTube |
-| 7 | Reddit "script" app (client id and secret), ideally on a fresh Reddit account | reddit.com/prefs/apps | 10 min | Free | Reddit |
+| 7 | Reddit "script" app | Not needed for now: Reddit runs on the EnsembleData token | | Free | Reddit, only if we return to hourly polling |
 | 8 | Decodo Web Scraping API key | decodo.com dashboard | Done | Plan on Joe's account | Google Trends |
 | 9 | Optional: apply for the Google Trends API alpha | developers.google.com/search/apis/trends | 5 min to apply, weeks to hear back | Free | Replaces Decodo for Trends if granted |
 

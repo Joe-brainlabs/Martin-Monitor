@@ -36,5 +36,9 @@ BROWSER_UA = (
 
 
 def env(name: str) -> str | None:
-    """Environment variable, or None when unset or blank."""
-    return os.getenv(name) or None
+    """Environment variable, or None when unset or blank. Surrounding quotes are dropped, because
+    Railway's Variables box keeps them if you type them."""
+    value = (os.getenv(name) or "").strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    return value or None

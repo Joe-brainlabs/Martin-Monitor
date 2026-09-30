@@ -1,9 +1,9 @@
 # Martin Monitor: what we watch, how often, and how items get tagged.
 # Cadences are minutes. A source with a missing key is skipped, not an error.
-# Current setting: X every 15 minutes, everything else daily, until the pitch cadence is agreed.
+# Current setting: everything daily, until the pitch cadence is agreed.
 
 x:
-  every_minutes: 15
+  every_minutes: 1440
   initial_max: 20          # tweets per handle on the very first run (each tweet read costs $0.005)
   handles:
     - handle: MartinSLewis
@@ -41,6 +41,15 @@ press:
   label: National press
   queries:
     - '"Martin Lewis"'
+
+reddit:
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
+  label: Reddit
+  subreddits: [UKPersonalFinance, AskUK]
+  sort: new
+  period: day
+  pages: 3                  # 25 posts a page, about 2 EnsembleData units a page
+  mention_terms: [martin lewis, moneysavingexpert, money saving expert, mse]
 
 youtube:
   every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence

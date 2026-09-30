@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..config import SOURCES, env
-from . import instagram, mse_forum, mse_guides, mse_news, press, trends, x, youtube
+from . import instagram, mse_forum, mse_guides, mse_news, press, reddit, trends, x, youtube
 
 
 @dataclass
@@ -39,6 +39,7 @@ REGISTRY: dict[str, Spec] = {
     "mse_news": _spec("mse_news", mse_news),
     "mse_forum": _spec("mse_forum", mse_forum),
     "press": _spec("press", press),
+    "reddit": _spec("reddit", reddit, ("ENSEMBLE_TOKEN",)),
     "youtube": _spec("youtube", youtube, ("YOUTUBE_API_KEY",)),
     "trends": _spec("trends", trends, ("DECODO_USERNAME", "DECODO_PASSWORD")),
     "mse_guides": _spec("mse_guides", mse_guides),

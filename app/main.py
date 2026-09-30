@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import db
 from .config import SOURCES, UI_DIR, env
 from .scheduler import build, run_source
-from .sources import ITEM_SOURCE_LABELS, REGISTRY
+from .sources import ITEM_SOURCE_LABELS, REGISTRY, instagram, x
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("martin")
@@ -80,7 +80,12 @@ def summary():
         for r in con.execute("SELECT topics_json FROM items WHERE first_seen_at >= ? AND topics_json IS NOT NULL", (since,)):
             for t in db.json.loads(r["topics_json"]):
                 topics[t] = topics.get(t, 0) + 1
+        trend_total = con.execute("SELECT COUNT(*) AS n FROM trends").fetchone()["n"]
+        trend_recent = con.execute("SELECT COUNT(*) AS n FROM trends WHERE captured_at >= ?", (since,)).fetchone()["n"]
+
         def stats(name: str) -> dict:
+            if name == "trends":
+                return {"total": trend_total, "last_24h": trend_recent, "latest_published": None}
             keys = [k for k in counts if k == name or (name == "x" and k.startswith("x_"))]
             if not keys:
                 return {}
@@ -184,14 +189,50 @@ def runs(limit: int = Query(50, ge=1, le=500)):
 @app.post("/api/run/{name}")
 def run_now(name: str, x_admin_token: str | None = Header(default=None)):
     """Trigger one source immediately. Server-side token check; disabled unless ADMIN_TOKEN is set."""
-    expected = env("ADMIN_TOKEN")
-    if not expected:
-        raise HTTPException(403, "Manual runs are disabled (ADMIN_TOKEN not set)")
-    if x_admin_token != expected:
-        raise HTTPException(401, "Bad admin token")
+    _require_admin(x_admin_token)
     if name not in REGISTRY:
         raise HTTPException(404, f"Unknown source. Known: {', '.join(REGISTRY)}")
     return run_source(name)
+
+
+def _require_admin(x_admin_token: str | None) -> None:
+    expected = env("ADMIN_TOKEN")
+    if not expected:
+        raise HTTPException(403, "Admin actions are disabled (ADMIN_TOKEN not set)")
+    if x_admin_token != expected:
+        raise HTTPException(401, "Bad admin token")
+
+
+@app.post("/api/backfill/{name}")
+def backfill(
+    name: str,
+    handle: str | None = None,
+    max: int = Query(200, ge=1, le=3200),
+    replies: str = Query("none", pattern="^(none|own)$"),
+    x_admin_token: str | None = Header(default=None),
+):
+    """Pull history for x (per handle, paid per tweet) or instagram (one Ensemble unit per ten posts)."""
+    _require_admin(x_admin_token)
+    con = db.connect()
+    started = db.utcnow()
+    try:
+        if name == "x":
+            if not handle:
+                raise HTTPException(400, "handle is required, e.g. MartinSLewis")
+            result = x.backfill(con, REGISTRY["x"].cfg, handle, max, include_replies=(replies == "own"))
+        elif name == "instagram":
+            result = instagram.backfill(con, REGISTRY["instagram"].cfg, max)
+        else:
+            raise HTTPException(404, "Backfill supports x and instagram")
+        db.record_run(con, f"backfill_{name}", started, True, result.get("stored", 0))
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.record_run(con, f"backfill_{name}", started, False, 0, str(exc)[:500])
+        raise HTTPException(502, str(exc)[:300])
+    finally:
+        con.close()
 
 
 # The UI last, so /api and /health win. StaticFiles handles path containment itself.

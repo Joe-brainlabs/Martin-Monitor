@@ -24,11 +24,30 @@ cp .env.example .env        # then fill in the keys you have; sources with no ke
 | `mse_news` | MSE news RSS, each new article fetched for its text | daily for now | none |
 | `mse_forum` | Six MSE forum boards via the public Vanilla API | daily for now | none |
 | `press` | Google News and Bing News RSS for "Martin Lewis" | daily for now | none |
+| `reddit` | Newest posts in r/UKPersonalFinance and r/AskUK that mention Martin or MSE or match a CTM topic, via EnsembleData | daily for now | `ENSEMBLE_TOKEN` |
 | `youtube` | Martin's channel uploads and view counts | daily for now | `YOUTUBE_API_KEY` |
 | `trends` | Google Trends, worldwide, via Decodo | daily | `DECODO_USERNAME`, `DECODO_PASSWORD` |
 | `mse_guides` | Six MSE guide pages, diffed on change | daily for now | none |
 
 Cadences, handles, boards, terms and the topic keyword lists live in `sources.yaml`. Everything except X runs daily for now; the target cadences are in PLAN.md.
+
+## Admin actions (production)
+
+With `ADMIN_TOKEN` set in Railway's Variables, two endpoints accept `X-Admin-Token`:
+
+```bash
+# run one source now (any key from the Sources table)
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<domain>/api/run/trends
+
+# pull history: X per handle (about $0.005 a tweet fetched), Instagram (one Ensemble unit per ten posts)
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/x?handle=MartinSLewis&max=800"
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/x?handle=MoneySavingExp&max=200"
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/backfill/instagram?max=50"
+```
+
+The X backfill excludes replies by default so every paid tweet is kept; add `&replies=own` to keep his thread continuations (pays for replies to other people too, which are then dropped). Use a long random `ADMIN_TOKEN`: anyone who guesses it can spend X credits.
+
+X engagement is re-read at 1, 6 and 24 hours after each tweet (about 1.5p a tweet) and kept in `metric_snapshots`, which is where velocity comes from.
 
 ## Layout
 
@@ -36,7 +55,7 @@ Cadences, handles, boards, terms and the topic keyword lists live in `sources.ya
 app/main.py          FastAPI: /health, /api/summary, /api/feed, /api/items/{id}, /api/trends, /api/runs, POST /api/run/{source}
 app/scheduler.py     APScheduler in-process; one job per source
 app/db.py            SQLite schema and helpers (items, metric_snapshots, trends, insights, runs, state)
-app/sources/*.py     one module per source, each exposing fetch(con, cfg) -> list[Item]
+app/sources/*.py     one module per source, each exposing fetch(con, cfg) -> list[Item] (x and instagram also expose backfill)
 app/run.py           run sources from the command line
 ui/                  the page: index.html, app.js, styles.css, tokens.css (from the CTM dashboard), fonts, brian.png
 sources.yaml         what we watch and how often

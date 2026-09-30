@@ -45,6 +45,15 @@ def _count(node: dict, *keys: str) -> int | None:
     return None
 
 
+def backfill(con, cfg: dict, posts: int) -> dict:
+    """Pull older posts: depth chunks of chunk_size, one unit per chunk."""
+    chunk = cfg.get("chunk_size", 10)
+    depth = max(1, -(-posts // chunk))
+    items = fetch(con, {**cfg, "depth": depth})
+    stored = db.upsert_items(con, items)
+    return {"requested": posts, "fetched": len(items), "stored": stored, "units_used": depth}
+
+
 def fetch(con, cfg: dict) -> list[Item]:
     items = []
     for account in cfg["accounts"]:
