@@ -1,5 +1,6 @@
 # Martin Monitor: what we watch, how often, and how items get tagged.
 # Cadences are minutes. A source with a missing key is skipped, not an error.
+# Current setting: X every 15 minutes, everything else daily, until the pitch cadence is agreed.
 
 x:
   every_minutes: 15
@@ -11,7 +12,7 @@ x:
       label: MoneySavingExpert on X
 
 instagram:
-  every_minutes: 60
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: Martin Lewis on Instagram
   chunk_size: 10           # EnsembleData charges 1 unit per 10 posts; the trial allows 50 units a day
   depth: 1
@@ -19,12 +20,12 @@ instagram:
     - username: martinlewismse
 
 mse_news:
-  every_minutes: 30
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: MSE news
   feed: https://www.moneysavingexpert.com/news/feeds/news.rss
 
 mse_forum:
-  every_minutes: 60
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: MSE forum
   per_board: 50
   boards:
@@ -36,18 +37,18 @@ mse_forum:
     143: Pets & pet care
 
 press:
-  every_minutes: 60
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: National press
   queries:
     - '"Martin Lewis"'
 
 youtube:
-  every_minutes: 720
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: YouTube
   channel_id: UC5CDoveqvEuQsW3x-DnYtww
 
 trends:
-  every_minutes: 1440
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: Google Trends (worldwide)
   geo: WORLD               # Decodo rejects geo on this target, so the series is worldwide by decision (30 Sep 2026)
   recent_days: 30          # a second, daily-resolution pull for the recent view
@@ -60,7 +61,7 @@ trends:
     - pet insurance cost
 
 mse_guides:
-  every_minutes: 120
+  every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
   label: MSE guide changes
   urls:
     - https://www.moneysavingexpert.com/insurance/car-insurance/

@@ -20,15 +20,15 @@ cp .env.example .env        # then fill in the keys you have; sources with no ke
 | Key | What | Cadence | Needs |
 |---|---|---|---|
 | `x` | @MartinSLewis and @MoneySavingExp timelines (own threads kept, replies to others dropped) | 15 min | `BEARER_TOKEN` (paid per tweet) |
-| `instagram` | @martinlewismse posts via EnsembleData | 60 min | `ENSEMBLE_TOKEN` |
-| `mse_news` | MSE news RSS, each new article fetched for its text | 30 min | none |
-| `mse_forum` | Six MSE forum boards via the public Vanilla API | 60 min | none |
-| `press` | Google News and Bing News RSS for "Martin Lewis" | 60 min | none |
-| `youtube` | Martin's channel uploads and view counts | 12 h | `YOUTUBE_API_KEY` |
+| `instagram` | @martinlewismse posts via EnsembleData | daily for now | `ENSEMBLE_TOKEN` |
+| `mse_news` | MSE news RSS, each new article fetched for its text | daily for now | none |
+| `mse_forum` | Six MSE forum boards via the public Vanilla API | daily for now | none |
+| `press` | Google News and Bing News RSS for "Martin Lewis" | daily for now | none |
+| `youtube` | Martin's channel uploads and view counts | daily for now | `YOUTUBE_API_KEY` |
 | `trends` | Google Trends, worldwide, via Decodo | daily | `DECODO_USERNAME`, `DECODO_PASSWORD` |
-| `mse_guides` | Six MSE guide pages, diffed on change | 2 h | none |
+| `mse_guides` | Six MSE guide pages, diffed on change | daily for now | none |
 
-Cadences, handles, boards, terms and the topic keyword lists live in `sources.yaml`.
+Cadences, handles, boards, terms and the topic keyword lists live in `sources.yaml`. Everything except X runs daily for now; the target cadences are in PLAN.md.
 
 ## Layout
 

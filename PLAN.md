@@ -24,6 +24,8 @@ The pitch version has to work end to end and look good on a big screen. It does 
 
 I tested every source I could reach without a new key this afternoon. The status column says what was tested and what is still a logical guess.
 
+The cadences below are the target. Current setting (Joe, 30 September): X every 15 minutes, everything else once a day, to be raised when the pitch cadence is agreed.
+
 | # | Source | How we fetch it | Cadence | Cost | Key needed | Status |
 |---|---|---|---|---|---|---|
 | 1 | Martin Lewis on X (@MartinSLewis, id 252569527) | X API v2 `GET /2/users/:id/tweets` with `since_id`, the code already in `fetch_tweets.py` | Every 15 min | $0.005 per tweet returned. Roughly $10 to $20 a month including engagement refreshes, plus about $5 once for a 1,000-tweet backfill | Have it | Tested today (5 tweets pulled) |
