@@ -11,26 +11,84 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Source glyphs: original marks in each source's colour family (not the brands' own logos). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#0f1419"/><path d="M7.5 7.5l9 9M16.5 7.5l-9 9" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></symbol>
+      <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="7" fill="#c2338f"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.4" fill="#fff"/></symbol>
+      <symbol id="i-youtube" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="5" fill="#d0021b"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></symbol>
+      <symbol id="i-reddit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#ff5a1f"/><path d="M6 9h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-6l-3 2.5V16H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill="#fff"/></symbol>
+      <symbol id="i-mse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#0b7a3b"/><text x="12" y="15.4" text-anchor="middle" font-family="Figtree, sans-serif" font-size="8.5" font-weight="800" fill="#fff">MSE</text></symbol>
+      <symbol id="i-forum" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#b7791f"/><path d="M6 7.5h8a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H9.5L7 16.5v-2H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill="#fff"/><path d="M17.5 10.5h.5a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H18v2l-2.5-2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+      <symbol id="i-press" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="6" fill="#4a4f66"/><rect x="6" y="7" width="12" height="2.2" rx="1" fill="#fff"/><rect x="6" y="11" width="7" height="1.8" rx=".9" fill="#fff"/><rect x="6" y="14.5" width="12" height="1.8" rx=".9" fill="#fff"/></symbol>
+      <symbol id="i-guide" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="6" fill="#0b7a3b"/><path d="M8 6h6l3 3v9H8z" fill="#fff"/><path d="M10 12h5M10 15h5" stroke="#0b7a3b" stroke-width="1.4"/></symbol>
+      <symbol id="i-trends" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="6" fill="#0024db"/><path d="M5 16l4-5 3 3 3-6 4 4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    </defs>
+  </svg>
+
   <header class="topbar">
     <div class="brand">
       <span class="wordmark">Martin Monitor</span>
       <span class="brand__sub">What Martin Lewis and MSE are saying, and where it is spreading</span>
     </div>
-    <div class="live" id="live"><span class="dot"></span><span id="live-text">Connecting…</span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab is-active" role="tab" data-tab="signals">Signals</button>
+      <button class="tab" role="tab" data-tab="demand">Demand</button>
+      <button class="tab" role="tab" data-tab="spread">Spread</button>
+      <button class="tab" role="tab" data-tab="sources">Sources</button>
+    </nav>
+    <div class="topbar__right">
+      <div class="live" id="live"><span class="dot"></span><span id="live-text">Connecting…</span></div>
+      <img class="client-logo" src="ctm-logo.webp" alt="Compare the Market">
+    </div>
   </header>
 
   <main>
-    <section class="summary" id="summary" aria-label="Sources"></section>
-
-    <section class="toolbar">
-      <div class="filters" id="source-filters" aria-label="Filter by source"></div>
-      <div class="filters filters--topics" id="topic-filters" aria-label="Filter by topic"></div>
+    <section id="panel-signals" class="panel" role="tabpanel">
+      <div class="hero" id="hero"></div>
+      <div class="toolbar">
+        <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search everything (e.g. price cap, Ofgem, renewal)" autocomplete="off"></label>
+        <div class="filters" id="source-filters" aria-label="Filter by source"></div>
+        <div class="filters filters--topics" id="topic-filters" aria-label="Filter by CTM category"></div>
+      </div>
+      <div class="columns">
+        <section class="feed" id="feed" aria-live="polite"></section>
+        <aside class="brian-panel" id="brian-panel"></aside>
+      </div>
     </section>
 
-    <section class="feed" id="feed" aria-live="polite"></section>
+    <section id="panel-demand" class="panel" role="tabpanel" hidden>
+      <div class="panel__head">
+        <div>
+          <h2>Search demand</h2>
+          <p class="lede">Google Trends interest for six CTM queries, with a dot wherever Martin posted on that topic. Worldwide index, 0 to 100 against the peak in the window. Source: Google Trends via Decodo.</p>
+        </div>
+        <div class="segmented" id="resolution" role="group" aria-label="Window">
+          <button class="seg is-active" data-res="weekly">12 months, weekly</button>
+          <button class="seg" data-res="daily">30 days, daily</button>
+        </div>
+      </div>
+      <div class="legend" id="demand-legend"></div>
+      <div class="charts" id="charts"></div>
+      <div class="table-toggle"><button class="btn" id="table-toggle">Show the numbers as a table</button></div>
+      <div id="demand-table"></div>
+    </section>
+
+    <section id="panel-spread" class="panel" role="tabpanel" hidden>
+      <div class="panel__head"><div><h2>Where it is spreading</h2><p class="lede">Press pickup, forum activity, Reddit and YouTube over the last seven days.</p></div></div>
+      <div id="spread"></div>
+    </section>
+
+    <section id="panel-sources" class="panel" role="tabpanel" hidden>
+      <div class="panel__head"><div><h2>Sources and cadence</h2><p class="lede">Every source, how often it runs, when it last ran and when it runs next. Times are your local time.</p></div></div>
+      <div id="sources"></div>
+    </section>
   </main>
 
-  <footer class="health" id="health"></footer>
+  <footer class="foot">Martin Monitor · a Brainlabs build for Compare the Market · data from public sources, refreshed automatically</footer>
   <script src="app.js"></script>
 </body>
 </html>

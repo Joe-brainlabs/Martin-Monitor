@@ -10,7 +10,7 @@ from ..config import env
 from .base import Item, http_get, to_iso
 
 API = "https://api.x.com/2"
-FIELDS = "created_at,public_metrics,conversation_id,in_reply_to_user_id,referenced_tweets,entities,lang"
+FIELDS = "created_at,public_metrics,conversation_id,in_reply_to_user_id,referenced_tweets,entities,lang,note_tweet"
 CHECKPOINTS_H = (1, 6, 24)  # re-read public_metrics this long after posting; three reads a tweet, about 1.5p
 COST_PER_TWEET = 0.005
 
@@ -37,7 +37,7 @@ def _tweet_item(handle: str, tweet: dict) -> Item:
         kind="post",
         external_id=tweet["id"],
         author=f"@{handle}",
-        text=tweet.get("text"),
+        text=(tweet.get("note_tweet") or {}).get("text") or tweet.get("text"),  # long posts arrive in note_tweet
         url=f"https://x.com/{handle}/status/{tweet['id']}",
         published_at=to_iso(tweet.get("created_at")),
         metrics=tweet.get("public_metrics", {}),

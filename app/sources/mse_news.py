@@ -23,7 +23,7 @@ def fetch(con, cfg: dict) -> list[Item]:
             page = fetch_page(link)
             description = meta_content(page, "og:description") or meta_content(page, "description")
             body = inner(page, "article") or inner(page, "main") or page
-            text = strip_html(body, limit=8000)
+            text = strip_html(body, limit=30000)
         except Exception as exc:  # keep the headline even if the article fetch is refused
             text = f"{FAILED}: {type(exc).__name__})"
         items.append(

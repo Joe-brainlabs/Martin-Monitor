@@ -4,8 +4,21 @@
     {
       "name": "martin-monitor",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "SCHEDULER=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765"],
+      "runtimeArgs": [
+        "-c",
+        "SCHEDULER=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765"
+      ],
       "port": 8765
+    },
+    {
+      "name": "martin-monitor-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "SCHEDULER=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port ${PORT:-8767}"
+      ],
+      "port": 8767,
+      "autoPort": true
     }
   ]
 }

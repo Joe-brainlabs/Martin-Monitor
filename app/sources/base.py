@@ -171,9 +171,21 @@ def meta_content(fragment: str, name: str) -> str | None:
     return html.unescape(match.group(1)) if match else None
 
 
+_TOPIC_PATTERNS = {
+    topic: re.compile(r"\b(?:" + "|".join(re.escape(p.lower()) for p in phrases) + r")\b")
+    for topic, phrases in SOURCES["topics"].items()
+}
+
+
 def tag_topics(text: str) -> list[str]:
+    """CTM product categories whose keyword phrases appear as whole words in the text (case-insensitive)."""
     lowered = text.lower()
-    return [topic for topic, phrases in SOURCES["topics"].items() if any(p.lower() in lowered for p in phrases)]
+    return [topic for topic, pattern in _TOPIC_PATTERNS.items() if pattern.search(lowered)]
+
+
+def mentions(text: str, terms: list[str]) -> bool:
+    lowered = text.lower()
+    return any(re.search(r"\b" + re.escape(t.lower()) + r"\b", lowered) for t in terms)
 
 
 def sha1(text: str) -> str:

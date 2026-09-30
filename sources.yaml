@@ -62,12 +62,12 @@ trends:
   geo: WORLD               # Decodo rejects geo on this target, so the series is worldwide by decision (30 Sep 2026)
   recent_days: 30          # a second, daily-resolution pull for the recent view
   terms:
-    - cheap car insurance
-    - car insurance renewal
-    - home insurance quotes
-    - best broadband deals
-    - energy price cap
-    - pet insurance cost
+    - {term: cheap car insurance, topic: car_insurance}
+    - {term: car insurance renewal, topic: car_insurance}
+    - {term: home insurance quotes, topic: home_insurance}
+    - {term: best broadband deals, topic: broadband}
+    - {term: energy price cap, topic: energy}
+    - {term: pet insurance cost, topic: pet_insurance}
 
 mse_guides:
   every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence

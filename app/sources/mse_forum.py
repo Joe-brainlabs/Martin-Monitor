@@ -19,7 +19,7 @@ def fetch(con, cfg: dict) -> list[Item]:
                     external_id=str(d["discussionID"]),
                     author=(d.get("insertUser") or {}).get("name"),
                     title=d.get("name"),
-                    text=strip_html(d.get("body"), limit=4000),
+                    text=strip_html(d.get("body"), limit=10000),
                     url=d.get("url"),
                     published_at=to_iso(d.get("dateInserted")),
                     metrics={

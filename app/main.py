@@ -22,6 +22,7 @@ log = logging.getLogger("martin")
 async def lifespan(app: FastAPI):
     db.init()
     scheduler = build() if os.getenv("SCHEDULER", "1") == "1" else None
+    app.state.scheduler = scheduler
     if scheduler:
         scheduler.start()
         log.info("scheduler started with %d jobs", len(scheduler.get_jobs()))
@@ -63,7 +64,7 @@ def summary():
             r["source"]: dict(r)
             for r in con.execute(
                 """SELECT source, COUNT(*) AS total,
-                          SUM(CASE WHEN first_seen_at >= ? THEN 1 ELSE 0 END) AS last_24h,
+                          SUM(CASE WHEN COALESCE(published_at, first_seen_at) >= ? THEN 1 ELSE 0 END) AS last_24h,
                           MAX(published_at) AS latest_published
                    FROM items GROUP BY source""",
                 (since,),
@@ -77,7 +78,7 @@ def summary():
             )
         }
         topics: dict[str, int] = {}
-        for r in con.execute("SELECT topics_json FROM items WHERE first_seen_at >= ? AND topics_json IS NOT NULL", (since,)):
+        for r in con.execute("SELECT topics_json FROM items WHERE COALESCE(published_at, first_seen_at) >= ? AND topics_json IS NOT NULL", (since,)):
             for t in db.json.loads(r["topics_json"]):
                 topics[t] = topics.get(t, 0) + 1
         trend_total = con.execute("SELECT COUNT(*) AS n FROM trends").fetchone()["n"]
@@ -95,6 +96,12 @@ def summary():
                 "latest_published": max((counts[k]["latest_published"] or "") for k in keys) or None,
             }
 
+        scheduler = getattr(app.state, "scheduler", None)
+
+        def next_run(name: str) -> str | None:
+            job = scheduler.get_job(name) if scheduler else None
+            return job.next_run_time.isoformat(timespec="seconds") if job and job.next_run_time else None
+
         sources = []
         for name, spec in REGISTRY.items():
             sources.append(
@@ -102,14 +109,58 @@ def summary():
                     "source": name,
                     "label": spec.label,
                     "enabled": spec.enabled,
+                    "reason": spec.reason,
                     "every_minutes": spec.every_minutes,
+                    "next_run": next_run(name),
                     **stats(name),
                     "last_run": {k: v for k, v in runs.get(name, {}).items() if k != "source"} or None,
                 }
             )
-        return {"time": db.utcnow(), "sources": sources, "topics_24h": topics, "topic_names": list(SOURCES["topics"])}
+        return {
+            "time": db.utcnow(),
+            "sources": sources,
+            "labels": labels(),
+            "by_item_source": {k: {kk: vv for kk, vv in v.items() if kk != "source"} for k, v in counts.items()},
+            "topics_24h": topics,
+            "topic_names": list(SOURCES["topics"]),
+            "topic_defs": SOURCES["topics"],
+            "trend_terms": [t if isinstance(t, dict) else {"term": t, "topic": None} for t in SOURCES["trends"]["terms"]],
+        }
     finally:
         con.close()
+
+
+CHAIN_HOURS = 48  # how long after a Martin post we look for MSE and press pickup on the same topic
+
+
+def attach_chains(con, items: list[dict]) -> None:
+    """For Martin's own posts, count MSE and press items on a shared topic within CHAIN_HOURS afterwards."""
+    martin = [i for i in items if i["source"] in ("x_martinslewis", "instagram") and i.get("topics") and i.get("published_at")]
+    if not martin:
+        return
+    lo = min(i["published_at"] for i in martin)
+    hi = (dt.datetime.fromisoformat(max(i["published_at"] for i in martin)) + dt.timedelta(hours=CHAIN_HOURS)).isoformat(timespec="seconds")
+    followers = [
+        db.row_to_item(r)
+        for r in con.execute(
+            """SELECT id, source, author, title, url, published_at, topics_json, metrics_json FROM items
+               WHERE source IN ('mse_news', 'press', 'x_moneysavingexp') AND published_at BETWEEN ? AND ?""",
+            (lo, hi),
+        )
+    ]
+    for post in martin:
+        start = dt.datetime.fromisoformat(post["published_at"])
+        end = start + dt.timedelta(hours=CHAIN_HOURS)
+        topics = set(post["topics"])
+        hits = [
+            f for f in followers
+            if f.get("topics") and topics & set(f["topics"]) and start <= dt.datetime.fromisoformat(f["published_at"]) <= end
+        ]
+        if hits:
+            post["chain"] = {
+                "mse": [{"id": f["id"], "title": f["title"], "url": f["url"]} for f in hits if f["source"] in ("mse_news", "x_moneysavingexp")][:3],
+                "press": [{"id": f["id"], "title": f["title"], "url": f["url"], "publisher": f["author"]} for f in hits if f["source"] == "press"][:6],
+            }
 
 
 @app.get("/api/feed")
@@ -118,12 +169,15 @@ def feed(
     source: str | None = None,
     topic: str | None = None,
     since: str | None = None,
+    q: str | None = None,
 ):
     clauses, params = [], []
     if source:
         clauses.append("source = ?"); params.append(source)
     if topic:
         clauses.append("topics_json LIKE ?"); params.append(f'%"{topic}"%')
+    if q:
+        clauses.append("(title LIKE ? OR text LIKE ? OR author LIKE ?)"); params.extend([f"%{q}%"] * 3)
     if since:
         clauses.append(f"{ACTIVITY} >= ?"); params.append(since)
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
@@ -131,12 +185,14 @@ def feed(
     try:
         rows = con.execute(
             f"""SELECT id, source, kind, external_id, author, title, text, url, published_at, first_seen_at,
-                       metrics_json, topics_json, {ACTIVITY} AS activity_at
+                       metrics_json, topics_json, brian_json, {ACTIVITY} AS activity_at
                 FROM items {where}
                 ORDER BY activity_at DESC LIMIT ?""",
             (*params, limit),
         ).fetchall()
-        return {"labels": labels(), "items": [db.row_to_item(r) for r in rows]}
+        items = [db.row_to_item(r) for r in rows]
+        attach_chains(con, items)
+        return {"labels": labels(), "items": items}
     finally:
         con.close()
 
@@ -172,7 +228,80 @@ def trends(term: str | None = None, resolution: str = "weekly"):
         series: dict[str, list] = {}
         for r in rows:
             series.setdefault(r["term"], []).append({"period_start": r["period_start"], "label": r["period_label"], "value": r["value"]})
-        return {"geo": SOURCES["trends"]["geo"], "resolution": resolution, "series": series}
+        terms = [t if isinstance(t, dict) else {"term": t, "topic": None} for t in SOURCES["trends"]["terms"]]
+        return {"geo": SOURCES["trends"]["geo"], "resolution": resolution, "terms": terms, "series": series}
+    finally:
+        con.close()
+
+
+@app.get("/api/insights")
+def insights(limit: int = Query(20, ge=1, le=100)):
+    """Brian's Insights (empty until the Anthropic key is connected and Phase 3 lands)."""
+    con = db.connect()
+    try:
+        rows = con.execute("SELECT * FROM insights ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            for key in ("impact_json", "actions_json", "evidence_json"):
+                d[key.removesuffix("_json")] = db.json.loads(d.pop(key) or "null")
+            out.append(d)
+        return {"insights": out, "brian_enabled": bool(env("ANTHROPIC_API_KEY"))}
+    finally:
+        con.close()
+
+
+@app.get("/api/spread")
+def spread():
+    """Where a story is spreading: press by publisher, forum boards, Reddit, YouTube. Last 7 days."""
+    con = db.connect()
+    try:
+        now = dt.datetime.now(dt.timezone.utc)
+        week = (now - dt.timedelta(days=7)).isoformat(timespec="seconds")
+        day = (now - dt.timedelta(hours=24)).isoformat(timespec="seconds")
+        press_by_publisher = [
+            dict(r) for r in con.execute(
+                """SELECT COALESCE(author, 'Unknown') AS publisher, COUNT(*) AS stories FROM items
+                   WHERE source = 'press' AND published_at >= ? GROUP BY publisher ORDER BY stories DESC LIMIT 10""", (week,))
+        ]
+        press_by_day = [
+            dict(r) for r in con.execute(
+                """SELECT substr(published_at, 1, 10) AS day, COUNT(*) AS stories FROM items
+                   WHERE source = 'press' AND published_at >= ? GROUP BY day ORDER BY day""",
+                ((now - dt.timedelta(days=14)).isoformat(timespec="seconds"),))
+        ]
+        boards = []
+        for r in con.execute(
+            """SELECT json_extract(metrics_json, '$.board') AS board,
+                      SUM(CASE WHEN json_extract(metrics_json, '$.last_comment_at') >= ? THEN 1 ELSE 0 END) AS active_24h,
+                      SUM(CASE WHEN json_extract(metrics_json, '$.last_comment_at') >= ? THEN 1 ELSE 0 END) AS active_7d,
+                      COUNT(*) AS threads
+               FROM items WHERE source = 'mse_forum' GROUP BY board ORDER BY active_24h DESC""", (day, week)):
+            board = dict(r)
+            board["top"] = [
+                dict(t) for t in con.execute(
+                    """SELECT id, title, url, json_extract(metrics_json, '$.comments') AS comments,
+                              json_extract(metrics_json, '$.views') AS views, json_extract(metrics_json, '$.last_comment_at') AS last_comment_at
+                       FROM items WHERE source = 'mse_forum' AND json_extract(metrics_json, '$.board') = ?
+                         AND json_extract(metrics_json, '$.last_comment_at') >= ?
+                       ORDER BY comments DESC LIMIT 3""", (board["board"], week))
+            ]
+            boards.append(board)
+        reddit = {
+            "posts_7d": con.execute("SELECT COUNT(*) AS n FROM items WHERE source = 'reddit' AND published_at >= ?", (week,)).fetchone()["n"],
+            "mentions_7d": con.execute(
+                "SELECT COUNT(*) AS n FROM items WHERE source = 'reddit' AND published_at >= ? AND json_extract(metrics_json, '$.mentions_martin') = 1", (week,)).fetchone()["n"],
+            "top": [dict(r) for r in con.execute(
+                """SELECT id, title, url, json_extract(metrics_json, '$.subreddit') AS subreddit,
+                          json_extract(metrics_json, '$.score') AS score, json_extract(metrics_json, '$.comments') AS comments
+                   FROM items WHERE source = 'reddit' AND published_at >= ? ORDER BY score DESC LIMIT 5""", (week,))],
+        }
+        youtube = [dict(r) for r in con.execute(
+            """SELECT id, title, url, published_at, json_extract(metrics_json, '$.views') AS views,
+                      json_extract(metrics_json, '$.likes') AS likes, json_extract(metrics_json, '$.comments') AS comments
+               FROM items WHERE source = 'youtube' ORDER BY published_at DESC LIMIT 6""")]
+        return {"time": db.utcnow(), "press_by_publisher": press_by_publisher, "press_by_day": press_by_day,
+                "boards": boards, "reddit": reddit, "youtube": youtube}
     finally:
         con.close()
 

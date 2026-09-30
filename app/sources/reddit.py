@@ -4,7 +4,7 @@ match a CTM topic. About two units a page; a few pages a day per subreddit."""
 
 import datetime as dt
 
-from .base import Item, http_get, tag_topics
+from .base import Item, http_get, mentions, tag_topics
 
 API = "https://ensembledata.com/apis/reddit/subreddit/posts"
 
@@ -26,9 +26,9 @@ def fetch(con, cfg: dict) -> list[Item]:
             for post in posts or []:
                 p = post.get("data", post)
                 blob = f"{p.get('title') or ''} {p.get('selftext') or ''}"
-                mentions = any(term in blob.lower() for term in mention_terms)
+                mentioned = mentions(blob, mention_terms)
                 topics = tag_topics(blob)
-                if not mentions and not topics:
+                if not mentioned and not topics:
                     continue
                 created = p.get("created_utc")
                 items.append(
@@ -38,7 +38,7 @@ def fetch(con, cfg: dict) -> list[Item]:
                         external_id=str(p.get("id")),
                         author=f"u/{p.get('author')}" if p.get("author") else None,
                         title=p.get("title"),
-                        text=(p.get("selftext") or "")[:4000] or None,
+                        text=(p.get("selftext") or "")[:10000] or None,
                         url=f"https://www.reddit.com{p.get('permalink')}" if p.get("permalink") else p.get("url"),
                         published_at=dt.datetime.fromtimestamp(float(created), dt.timezone.utc).isoformat(timespec="seconds") if created else None,
                         metrics={
@@ -46,7 +46,7 @@ def fetch(con, cfg: dict) -> list[Item]:
                             "score": p.get("score", 0),
                             "comments": p.get("num_comments", 0),
                             "upvote_ratio": p.get("upvote_ratio"),
-                            "mentions_martin": mentions,
+                            "mentions_martin": mentioned,
                         },
                         topics=topics,
                         raw={"flair": p.get("link_flair_text")},

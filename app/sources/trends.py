@@ -75,7 +75,8 @@ def fetch(con, cfg: dict) -> int:
     geo = cfg.get("geo", "WORLD")
     today = dt.date.today()
     new, failures = 0, []
-    for term in cfg["terms"]:
+    for entry in cfg["terms"]:
+        term = entry["term"] if isinstance(entry, dict) else entry
         try:
             yearly = _scrape({"target": "google_trends_explore", "query": term})
             new += db.upsert_trends(con, _rows(term, geo, "weekly", yearly))

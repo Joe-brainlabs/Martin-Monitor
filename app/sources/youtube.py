@@ -29,7 +29,7 @@ def fetch(con, cfg: dict) -> list[Item]:
                 external_id=v["id"],
                 author=snippet.get("channelTitle"),
                 title=snippet.get("title"),
-                text=(snippet.get("description") or "")[:2000],
+                text=(snippet.get("description") or "")[:5000],
                 url=f"https://www.youtube.com/watch?v={v['id']}",
                 published_at=to_iso(snippet.get("publishedAt")),
                 metrics={

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS items (
   metrics_json TEXT,
   topics_json TEXT,
   raw_json TEXT,
+  brian_json TEXT,
   UNIQUE(source, external_id)
 );
 CREATE INDEX IF NOT EXISTS items_published ON items(published_at);
@@ -83,6 +84,9 @@ def connect() -> sqlite3.Connection:
 def init() -> None:
     with connect() as con:
         con.executescript(SCHEMA)
+        columns = {r["name"] for r in con.execute("PRAGMA table_info(items)")}
+        if "brian_json" not in columns:  # databases created before Brian's View existed
+            con.execute("ALTER TABLE items ADD COLUMN brian_json TEXT")
 
 
 def get_state(con: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
@@ -175,7 +179,8 @@ def record_run(con: sqlite3.Connection, source: str, started_at: str, ok: bool, 
 
 def row_to_item(row: sqlite3.Row) -> dict:
     d = dict(row)
-    for key in ("metrics_json", "topics_json"):
-        d[key.removesuffix("_json")] = json.loads(d.pop(key) or "null")
+    for key in ("metrics_json", "topics_json", "brian_json"):
+        if key in d:
+            d[key.removesuffix("_json")] = json.loads(d.pop(key) or "null")
     d.pop("raw_json", None)
     return d
