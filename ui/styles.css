@@ -1,0 +1,70 @@
+/* Phase 0 feed page. Colours come from tokens.css (copied from the CTM dashboard); Figtree from fonts/. */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--navy, #00003c);
+  background: #f6f7fb;
+  line-height: 1.45;
+}
+a { color: var(--blue, #0024db); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 28px; background: #fff; border-bottom: 1px solid #e3e6f0;
+  position: sticky; top: 0; z-index: 2;
+}
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.wordmark { font-size: 20px; font-weight: 800; letter-spacing: -.01em; color: var(--navy, #00003c); }
+.brand__sub { font-size: 12.5px; color: #5a6080; }
+.live { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: #5a6080; }
+.live .dot { width: 9px; height: 9px; border-radius: 50%; background: #c9cde0; }
+.live.is-live .dot { background: #12b76a; box-shadow: 0 0 0 4px rgba(18,183,106,.18); }
+.live.is-stale .dot { background: #e0a300; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 22px 28px 60px; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.card {
+  background: #fff; border: 1px solid #e3e6f0; border-radius: 14px; padding: 14px 16px;
+}
+.card__label { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: #5a6080; }
+.card__num { font-size: 28px; font-weight: 800; color: var(--blue, #0024db); line-height: 1.1; margin-top: 4px; }
+.card__sub { font-size: 12px; color: #5a6080; margin-top: 4px; }
+.card.is-off { opacity: .55; }
+.card.is-error .card__sub { color: #c62828; }
+
+.toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid #d5d9e8; background: #fff; color: var(--navy, #00003c); border-radius: 999px;
+  padding: 5px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.chip:hover { border-color: var(--blue, #0024db); }
+.chip.is-active { background: var(--blue, #0024db); border-color: var(--blue, #0024db); color: #fff; }
+.filters--topics .chip.is-active { background: var(--purple, #892bf7); border-color: var(--purple, #892bf7); }
+
+.feed { display: flex; flex-direction: column; gap: 10px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; }
+.item__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #5a6080; }
+.pill { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: #eef1ff; color: var(--blue, #0024db); }
+.pill--x_martinslewis, .pill--x_moneysavingexp { background: #e8f4ff; color: #0b5fa5; }
+.pill--mse_news, .pill--mse_guides { background: #e6f7ee; color: #12734a; }
+.pill--mse_forum { background: #fff4d6; color: #8a5a00; }
+.pill--press { background: #f3e6ff; color: var(--purple, #892bf7); }
+.pill--instagram { background: #fde7f3; color: #b0186e; }
+.pill--youtube { background: #ffe6e6; color: #b3261e; }
+.item__title { font-size: 15px; font-weight: 700; margin: 6px 0 2px; }
+.item__text { font-size: 14px; color: #2a2f4a; white-space: pre-line; overflow-wrap: anywhere; }
+.item__text.is-clamped { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.item__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; color: #5a6080; white-space: nowrap; }
+.item__metrics { display: flex; gap: 10px; }
+.topic { font-size: 11px; font-weight: 700; color: var(--purple, #892bf7); background: var(--purple-t, #f3e6ff); padding: 2px 7px; border-radius: 6px; }
+.empty { text-align: center; color: #5a6080; padding: 40px 0; }
+
+.health { max-width: 1180px; margin: 0 auto; padding: 0 28px 40px; font-size: 12px; color: #5a6080; }
+.health table { border-collapse: collapse; width: 100%; }
+.health td, .health th { text-align: left; padding: 4px 8px 4px 0; border-top: 1px solid #e3e6f0; }
+.health .ok { color: #12734a; font-weight: 700; }
+.health .bad { color: #c62828; font-weight: 700; }

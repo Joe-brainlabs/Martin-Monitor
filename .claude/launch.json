@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "martin-monitor",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "SCHEDULER=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765"],
+      "port": 8765
+    }
+  ]
+}

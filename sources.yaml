@@ -1,0 +1,81 @@
+# Martin Monitor: what we watch, how often, and how items get tagged.
+# Cadences are minutes. A source with a missing key is skipped, not an error.
+
+x:
+  every_minutes: 15
+  initial_max: 20          # tweets per handle on the very first run (each tweet read costs $0.005)
+  handles:
+    - handle: MartinSLewis
+      label: Martin Lewis on X
+    - handle: MoneySavingExp
+      label: MoneySavingExpert on X
+
+instagram:
+  every_minutes: 60
+  label: Martin Lewis on Instagram
+  chunk_size: 10           # EnsembleData charges 1 unit per 10 posts; the trial allows 50 units a day
+  depth: 1
+  accounts:
+    - username: martinlewismse
+
+mse_news:
+  every_minutes: 30
+  label: MSE news
+  feed: https://www.moneysavingexpert.com/news/feeds/news.rss
+
+mse_forum:
+  every_minutes: 60
+  label: MSE forum
+  per_board: 50
+  boards:
+    21: Insurance & life assurance
+    13: Energy
+    29: Techie Stuff
+    69: Broadband & internet access
+    11: Credit cards
+    143: Pets & pet care
+
+press:
+  every_minutes: 60
+  label: National press
+  queries:
+    - '"Martin Lewis"'
+
+youtube:
+  every_minutes: 720
+  label: YouTube
+  channel_id: UC5CDoveqvEuQsW3x-DnYtww
+
+trends:
+  every_minutes: 1440
+  label: Google Trends (worldwide)
+  geo: WORLD               # Decodo rejects geo on this target, so the series is worldwide by decision (30 Sep 2026)
+  recent_days: 30          # a second, daily-resolution pull for the recent view
+  terms:
+    - cheap car insurance
+    - car insurance renewal
+    - home insurance quotes
+    - best broadband deals
+    - energy price cap
+    - pet insurance cost
+
+mse_guides:
+  every_minutes: 120
+  label: MSE guide changes
+  urls:
+    - https://www.moneysavingexpert.com/insurance/car-insurance/
+    - https://www.moneysavingexpert.com/insurance/home-insurance/
+    - https://www.moneysavingexpert.com/utilities/
+    - https://www.moneysavingexpert.com/credit-cards/
+    - https://www.moneysavingexpert.com/insurance/travel-insurance/
+    - https://www.moneysavingexpert.com/insurance/cut-pet-insurance-costs/
+
+# CTM product categories. An item gets a topic when its title or text contains any phrase (case-insensitive).
+topics:
+  car_insurance: [car insurance, motor insurance, car cover, black box, telematics, insurance premium]
+  home_insurance: [home insurance, contents insurance, buildings insurance, home cover]
+  pet_insurance: [pet insurance, vet bills, vet fees]
+  travel_insurance: [travel insurance, ghic, ehic, holiday cover]
+  energy: [energy, price cap, ofgem, electricity, gas bill, standing charge, smart meter, fixed tariff, warm home discount]
+  broadband: [broadband, wifi, fibre, sim only, mobile contract, phone contract, mid-contract price]
+  credit_cards: [credit card, balance transfer, 0% card, credit score, credit file, section 75, apr]

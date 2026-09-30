@@ -1,0 +1,10 @@
+# Railway reads this on deploy. The persistent volume (mount path /data) and the environment
+# variables are set in the Railway dashboard, not here.
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

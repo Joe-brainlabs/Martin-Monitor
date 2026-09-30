@@ -143,8 +143,8 @@ Each phase leaves something you can show.
 
 | Phase | Time | What gets built | Demoable result |
 |---|---|---|---|
-| 0 | Half a day, no new keys | Repo skeleton, SQLite, scheduler, pollers for X, MSE RSS, MSE forum and Google News, plain feed page running locally | A live feed from four sources on Joe's laptop |
-| 1 | One day | Railway deploy with volume and health checks. Instagram, YouTube, Reddit, Trends, guide-page diffing. Backfill: 1,000 tweets, last 50 Instagram posts, 30 days of news | The same feed on a public URL, updating itself, with history |
+| 0 | Done 30 Sep | Repo skeleton, SQLite, scheduler, pollers for all eight sources (X, Instagram, MSE news, MSE forum, press, YouTube, Trends, guide changes), feed page, Dockerfile and Railway config. First run stored 33 tweets, 10 Instagram posts, 20 articles, 300 threads, 104 press stories, 25 videos and 504 trend points | A live feed from every source on Joe's laptop, ready to deploy |
+| 1 | Half a day | Railway deploy with volume and health checks. Reddit poller. Engagement re-reads for velocity. Backfill: 1,000 tweets, last 50 Instagram posts, 30 days of news | The same feed on a public URL, updating itself, with history |
 | 2 | One day | The real UI: hero, feed with filters and chain markers, demand chart, spread panel, CTM tokens. Iframe into the CTM dashboard's Martin Monitor page | The page you would show a client |
 | 3 | One day | Brian: `context.md` written with Joe, scheduled insights with the schema, Ask Brian streaming, prompt tuning against the backfilled month | Brian reading real signals and answering questions live |
 | 4 | Half a day | Polish, freshness indicators, spend caps, security pass with `bl-vibe-code-security-guardrails`, README, Vibe Coding Log entry | Ready for the pitch |
@@ -161,7 +161,7 @@ In the order we need them.
 | 2 | Anthropic API key, with a monthly spend limit set (suggest $100) | platform.claude.com | 5 min | Usage, about $30 to $60 a month | Brian |
 | 3 | Railway account, connected to GitHub | Done. Project id `21d74822-bd4b-496a-8c21-2cf64acfbf96` | Done | $5 Hobby plan plus usage, about $5 to $10 a month | Hosting |
 | 4 | GitHub repo | Done. `github.com/Brainlabs-Digital/Martin-Monitor` (remote `origin` in this folder) | Done | Free | Code and deploys |
-| 5 | EnsembleData free trial token | ensembledata.com | 10 min | Free (50 units a day). $100 a month only if we add comments | Instagram |
+| 5 | EnsembleData free trial token | Done (30 Sep) | Done | Free (50 units a day). $100 a month only if we add comments | Instagram |
 | 6 | Google Cloud API key with YouTube Data API v3 enabled | Done. The key is from the "Anomaly Checker" project in Joe's Google Cloud console | Done | Free | YouTube |
 | 7 | Reddit "script" app (client id and secret), ideally on a fresh Reddit account | reddit.com/prefs/apps | 10 min | Free | Reddit |
 | 8 | Decodo Web Scraping API key | decodo.com dashboard | Done | Plan on Joe's account | Google Trends |
@@ -195,6 +195,7 @@ If the Instagram trial runs out, the paid EnsembleData plan adds $100 and lets u
 ## Appendix: what changed from the source table
 
 - MSE news URL corrected to `/news/`, and the real RSS feed found at `/news/feeds/news.rss`.
+- MSE pet insurance guide URL corrected to `/insurance/cut-pet-insurance-costs/` (the one in the table is a 404).
 - Instagram through EnsembleData rather than Infegy.
 - National press through Google News and Bing RSS rather than Meltwater or Infegy.
 - Google Trends through Decodo's Web Scraping API (Joe's choice over SerpApi), with an alpha application in the background.

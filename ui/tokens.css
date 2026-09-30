@@ -1,0 +1,66 @@
+/* CtM Intelligence Dashboard: design tokens.
+   The single place colours, type and radii are defined. Everything else references
+   these variables (`var(--blue)`), so a brand change is a one-file edit. The class
+   names in components.css and the utility suffixes (.c-blue, .bg-b400, .tint-amber)
+   are named after these tokens. See docs/style-guide.md for how they are used. */
+:root {
+  /* Brand */
+  --blue: #0024db;        /* primary brand blue: links, active states, key metrics */
+  --blue-h: #0074f8;      /* blue hover */
+  --blue-d: #0000a1;      /* blue pressed / strong emphasis */
+  --navy: #00003c;        /* deep navy: dark surfaces, Brian panels, active chips */
+  --navy-2: #21005c;      /* the purple end of the Brian gradient */
+  --purple: #892bf7;      /* AI / Brian accent */
+  --magenta: #d30094;     /* Brian star mark */
+  --accent: #ffc400;      /* brand yellow: one score or flag per screen, never a fill */
+
+  /* Blue tints: light surfaces, chips, progress tracks, chart bands */
+  --b100: #78c1ff;
+  --b200: #a6dcff;
+  --b300: #cdebff;
+  --b400: #e9f8ff;
+
+  /* Neutrals */
+  --white: #fff;
+  --text: #171b27;
+  --t2: #5a5d6e;
+  --muted: #707382;
+  --border: #e8e8e9;
+  --border2: #f3f4f4;
+  --bg: #f6f8fb;          /* page background */
+  --lilac: #c9a3e8;       /* competitor paid in SERP stacks, competitor lines */
+  --grey-line: #b9c2d2;   /* dashed target lines on charts */
+  --grey-dash: #8894ac;   /* counterfactual dashed line */
+  --on-dark: #c3cdf0;     /* secondary text on navy */
+  --on-dark-2: #dfe8ff;   /* body text on navy */
+
+  /* Status. Each has a tint for soft backgrounds and a text colour for use on that tint. */
+  --success: #009f00;
+  --success-t: #9de1ac;
+  --success-text: #046b04;
+  --danger: #de1e40;
+  --danger-t: #fed1d0;
+  --danger-text: #a3122e;
+  --amber: #b87000;       /* amber as text */
+  --amber-dot: #e0a300;   /* amber as a dot or bar */
+  --amber-t: #ffe9b8;
+  --amber-text: #8a5300;
+  --purple-t: #f3e6ff;
+  --magenta-t: #fce4f5;
+
+  /* Brian / AI surfaces */
+  --gradient-ai: linear-gradient(135deg, var(--navy), var(--navy-2));
+  --gradient-ai-120: linear-gradient(120deg, var(--navy), var(--navy-2));
+
+  /* Type */
+  --font: "Figtree", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Shape and layout */
+  --pad: 18px;            /* card padding; the `density` prop switches this to 13px */
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --radius-sm: 10px;
+  --sidebar-w: 262px;
+  --content-max: 1240px;
+}
