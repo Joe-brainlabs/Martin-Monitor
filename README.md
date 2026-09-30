@@ -47,7 +47,7 @@ fetch_tweets.py      the original standalone tweet downloader; kept for backfill
 
 The service runs as one always-on container from the `Dockerfile`. Every push to `main` redeploys.
 
-1. Railway project, New service, GitHub repo `Brainlabs-Digital/Martin-Monitor`, branch `main`.
+1. Railway project, New service, GitHub repo `Joe-brainlabs/Martin-Monitor`, branch `main`.
 2. Variables: paste the contents of your `.env`, and set `DATA_DIR=/data`.
 3. Volumes: add one, mount path `/data`. The SQLite file lives there and survives deploys.
 4. Settings, Networking, Generate Domain. That URL is production.

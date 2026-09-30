@@ -96,7 +96,7 @@ Topics are CTM product categories (car insurance, home insurance, pet insurance,
 
 ### Deploying
 
-The repo is `github.com/Brainlabs-Digital/Martin-Monitor`, connected to Railway project `21d74822-bd4b-496a-8c21-2cf64acfbf96`. Railway builds from the Dockerfile on every push, so deploying is `git push`. Secrets live in Railway's environment variables and nowhere else. The volume holds `/data/martin.db`; a nightly job writes `/data/export.json` and copies it to a Google Cloud Storage bucket, so losing the volume costs us a day, not the project.
+The repo is `github.com/Joe-brainlabs/Martin-Monitor`, connected to Railway project `21d74822-bd4b-496a-8c21-2cf64acfbf96`. Railway builds from the Dockerfile on every push, so deploying is `git push`. Secrets live in Railway's environment variables and nowhere else. The volume holds `/data/martin.db`; a nightly job writes `/data/export.json` and copies it to a Google Cloud Storage bucket, so losing the volume costs us a day, not the project.
 
 ### What I ruled out, and why
 
@@ -162,7 +162,7 @@ In the order we need them.
 | 1 | X API credits top-up | console.x.com, billing | Done, may need $20 to $30 more | See Part 1 | Sources 1 and 2, plus the backfill |
 | 2 | Anthropic API key, with a monthly spend limit set (suggest $100) | platform.claude.com | 5 min | Usage, about $30 to $60 a month | Brian |
 | 3 | Railway account, connected to GitHub | Done. Project id `21d74822-bd4b-496a-8c21-2cf64acfbf96` | Done | $5 Hobby plan plus usage, about $5 to $10 a month | Hosting |
-| 4 | GitHub repo | Done. `github.com/Brainlabs-Digital/Martin-Monitor` (remote `origin` in this folder) | Done | Free | Code and deploys |
+| 4 | GitHub repo | Done. `github.com/Joe-brainlabs/Martin-Monitor` (remote `origin` in this folder) | Done | Free | Code and deploys |
 | 5 | EnsembleData free trial token | Done (30 Sep) | Done | Free (50 units a day). $100 a month only if we add comments | Instagram |
 | 6 | Google Cloud API key with YouTube Data API v3 enabled | Done. The key is from the "Anomaly Checker" project in Joe's Google Cloud console | Done | Free | YouTube |
 | 7 | Reddit "script" app (client id and secret), ideally on a fresh Reddit account | reddit.com/prefs/apps | 10 min | Free | Reddit |
