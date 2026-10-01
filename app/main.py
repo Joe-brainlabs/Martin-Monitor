@@ -47,6 +47,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Martin Monitor", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def no_stale_ui(request: Request, call_next):
+    """Make browsers revalidate the page, JS and CSS on every load, so a deploy shows up without a hard refresh."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api") and request.url.path.split(".")[-1] in ("", "/", "html", "js", "css") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
 
