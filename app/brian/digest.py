@@ -21,7 +21,7 @@ class Insight(BaseModel):
 
 
 class Digest(BaseModel):
-    daily_read: str = Field(description="Two or three plain sentences on what the last 24 hours mean for Compare the Market")
+    daily_read: str = Field(description="At most 70 words, two or three plain sentences: what the last 24 hours mean for Compare the Market. Lead with the one thing that matters.")
     insights: list[Insight] = Field(description="Two to four insights, most important first. Fewer if little happened.")
 
 

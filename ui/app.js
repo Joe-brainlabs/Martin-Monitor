@@ -132,7 +132,10 @@ function renderHero() {
     topics.length ? `In play: ${topics.slice(0, 3).map(([t]) => nice(t)).join(", ")}.` : "",
     `${press} press ${press === 1 ? "story" : "stories"} mentioned him and ${forum} forum ${forum === 1 ? "thread was" : "threads were"} active.`,
   ].filter(Boolean).join(" ");
-  body.append(el("p", "hero__text", brianRead || sentence));
+  const readEl = el("p", "hero__text" + (brianRead && brianRead.length > 320 ? " is-clamped" : ""), brianRead || sentence);
+  readEl.title = brianRead && brianRead.length > 320 ? "Click to read all of it" : "";
+  readEl.onclick = () => readEl.classList.toggle("is-clamped");
+  body.append(readEl);
   body.append(el("p", "hero__note", brianRead ? `${sentence} Written ${ago(s.brian.read_at)} by Brian (${s.brian.model}).` : state.insights?.brian_enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
   read.append(avatar, body);
   hero.append(read);
