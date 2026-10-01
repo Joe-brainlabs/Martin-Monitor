@@ -53,7 +53,18 @@ def health():
         last = con.execute(
             "SELECT source, MAX(finished_at) AS finished_at FROM runs GROUP BY source"
         ).fetchall()
-        return {"ok": True, "time": db.utcnow(), "last_runs": {r["source"]: r["finished_at"] for r in last}}
+        # Which keys the running process can see: names and lengths only, never values.
+        names = ["BEARER_TOKEN", "ENSEMBLE_TOKEN", "YOUTUBE_API_KEY", "DECODO_USERNAME", "DECODO_PASSWORD", "ANTHROPIC_API_KEY", "ADMIN_TOKEN", "DATA_DIR"]
+        keys = {n: (len(env(n)) if env(n) else 0) for n in names}
+        near = sorted(k for k in os.environ if "ANTHROPIC" in k.upper() and k != "ANTHROPIC_API_KEY")
+        return {
+            "ok": True,
+            "time": db.utcnow(),
+            "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "local")[:7],
+            "keys_set": keys,
+            "similar_names": near,
+            "last_runs": {r["source"]: r["finished_at"] for r in last},
+        }
     finally:
         con.close()
 
