@@ -20,7 +20,7 @@ const state = {
   tab: "signals", source: null, topic: null, q: "",
   summary: null, feed: [], insights: null, spread: null, runs: [],
   trends: {}, resolution: "weekly", martinPosts: null, showTable: false,
-  expanded: new Set(), brianOpen: new Set(),
+  expanded: new Set(), brianToggled: new Set(),
 };
 
 // ---------- helpers ----------
@@ -230,7 +230,7 @@ async function askBrianAbout(item, card) {
     const r = await fetch(`/api/brian/view/${item.id}`, { method: "POST" });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     item.brian = await r.json();
-    state.brianOpen.add(item.id);
+    state.brianToggled.delete(item.id);  // a fresh view opens by default
     card.replaceWith(renderItem(item));
   } catch (err) {
     if (btn) { btn.disabled = false; btn.replaceChildren(document.createTextNode(`Brian couldn't read it: ${err.message}`)); }
@@ -314,25 +314,26 @@ function renderItem(item) {
     foot.append(b);
   }
   const brianOn = state.insights?.brian_enabled;
-  const brianOpen = state.brianOpen.has(item.id) || !!item.brian;
+  const brianOpen = !!item.brian !== state.brianToggled.has(item.id);  // default open when a view exists; a click flips it
+  const toggleBrian = () => { if (state.brianToggled.has(item.id)) state.brianToggled.delete(item.id); else state.brianToggled.add(item.id); card.replaceWith(renderItem(item)); };
   const bb = el("button", "btn btn--brian" + (brianOpen ? " is-on" : ""));
   const bimg = el("img"); bimg.src = "brian.png"; bimg.alt = "";
   if (item.brian) {
     bb.append(bimg, document.createTextNode(item.brian.relevance === "none" ? "Brian: not one for CTM" : "Brian's view"), icon("chevron", "ico ico--sm ico--chev"));
-    bb.onclick = () => { if (state.brianOpen.has(item.id)) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
+    bb.onclick = toggleBrian;
   } else if (brianOn) {
     bb.append(bimg, document.createTextNode("Ask Brian about this"));
     bb.onclick = () => askBrianAbout(item, card);
   } else {
     bb.append(bimg, document.createTextNode("Brian's view (not yet)"), icon("chevron", "ico ico--sm ico--chev"));
-    bb.onclick = () => { if (state.brianOpen.has(item.id)) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
+    bb.onclick = toggleBrian;
   }
   foot.append(bb);
   const metrics = el("div", "item__metrics");
   for (const part of metricsFor(item)) metrics.append(el("span", null, part));
   foot.append(metrics);
   card.append(foot);
-  if (item.brian ? brianOpen : state.brianOpen.has(item.id)) card.append(brianView(item));
+  if (brianOpen) card.append(brianView(item));
   return card;
 }
 
