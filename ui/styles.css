@@ -18,7 +18,10 @@ h3 { margin: 0; font-size: 15px; }
 
 /* Top bar and tabs */
 .topbar { display: flex; align-items: center; gap: 28px; padding: 12px 28px; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
-.brand { display: flex; flex-direction: column; gap: 1px; min-width: 250px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 250px; color: inherit; }
+.brand:hover { text-decoration: none; }
+.brand__logo { width: 42px; height: 42px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid var(--border); padding: 3px; }
+.brand__text { display: flex; flex-direction: column; gap: 1px; }
 .wordmark { font-size: 20px; font-weight: 800; letter-spacing: -.01em; color: var(--navy); }
 .brand__sub { font-size: 12px; color: var(--t2); }
 .tabs { display: flex; gap: 4px; margin-left: auto; }

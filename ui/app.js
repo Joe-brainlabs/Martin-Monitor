@@ -89,6 +89,7 @@ function setTab(name) {
   loadTab(name);
 }
 for (const b of document.querySelectorAll(".tab")) b.onclick = () => setTab(b.dataset.tab);
+document.querySelector(".brand").onclick = (e) => { e.preventDefault(); setTab("signals"); };
 
 // ---------- signals ----------
 async function loadSignals() {
