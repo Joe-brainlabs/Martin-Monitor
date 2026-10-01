@@ -6,7 +6,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -464,6 +464,29 @@ def prune_reddit(x_admin_token: str | None = Header(default=None)):
         return {"removed": len(ids)}
     finally:
         con.close()
+
+
+def _asset_version() -> str:
+    """Short hash of the JS and CSS, so every deploy that changes them gets new asset URLs."""
+    import hashlib
+    digest = hashlib.sha1()
+    for name in ("app.js", "styles.css", "tokens.css"):
+        digest.update((UI_DIR / name).read_bytes())
+    return digest.hexdigest()[:10]
+
+
+ASSET_VERSION = _asset_version()
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def index():
+    """The page, with versioned asset URLs. A CDN in front of us (Cloudflare) caches JS and CSS for hours;
+    a new ?v= on each deploy means it can never serve last deploy's script with this deploy's page."""
+    html = (UI_DIR / "index.html").read_text()
+    for name in ("app.js", "styles.css", "tokens.css"):
+        html = html.replace(f'"{name}"', f'"{name}?v={ASSET_VERSION}"')
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 # The UI last, so /api and /health win. StaticFiles handles path containment itself.
