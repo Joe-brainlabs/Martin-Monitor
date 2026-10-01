@@ -44,6 +44,18 @@ We store the full text of everything: whole tweets (including X's long posts via
 
 Source glyphs are original marks, not the platforms' logos. To use official brand assets, drop them into `ui/` and point the sprite symbols in `index.html` at them.
 
+## Brian
+
+Brian is Claude Opus 5.5 with a persona and a context file (`app/brian/context.md`, a draft of what he knows about Compare the Market: correct it before the pitch). He never runs on page load.
+
+- **Brian's View** is written once per item, by the scheduled `brian` job (hourly, only when there is something new), for Martin's and MSE's own posts, loud forum and Reddit threads and press stories on a CTM topic. Everything else gets an **Ask Brian about this** button that writes the view on request and stores it. Views are structured: relevance, summary, impact by product line, actions, corrected categories, confidence.
+- **Brian's Insights** and the hero's read of the day come from an hourly digest over the last 24 hours, grounded in stored items (each insight carries evidence ids) and the Trends, forum and press numbers.
+- **Ask Brian** streams a live answer grounded in the latest read, insights and recent items. Public endpoint, so it is rate-limited per caller (20 an hour) and capped at 500 characters.
+- Spend shows on the Sources tab. Six views plus a digest cost about 10 cents in testing; the stable system prompt is cached, so most input tokens are cheap cache reads. Set a monthly limit in the Anthropic console as the backstop.
+- Prompt-injection posture: item text sits inside `<item>` tags in the user turn, the persona treats it as data, and Brian has no tools, so the worst case is one stored paragraph that a human reads. Server-side refusal fallbacks are not enabled; refusals are implausible for this material and the extra beta plumbing was not worth it.
+
+Needs `ANTHROPIC_API_KEY` in Railway's Variables. Force a digest with `POST /api/brian/digest` (admin token).
+
 ## Admin actions (production)
 
 With `ADMIN_TOKEN` set in Railway's Variables, two endpoints accept `X-Admin-Token`:

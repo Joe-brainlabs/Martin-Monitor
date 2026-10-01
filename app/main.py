@@ -5,12 +5,19 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from . import db
 from .config import SOURCES, UI_DIR, env
+from .brian import ask as brian_ask
+from .brian import client as brian
+from .brian import digest as brian_digest
+from .brian import views as brian_views
+from .queries import ACTIVITY, attach_chains
 from .scheduler import build, run_source
 from .sources import ITEM_SOURCE_LABELS, REGISTRY, instagram, x
 
@@ -33,10 +40,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Martin Monitor", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
-
-
-# When an item was last active: a forum thread's latest comment, otherwise when it was published.
-ACTIVITY = "COALESCE(json_extract(metrics_json, '$.last_comment_at'), published_at, first_seen_at)"
 
 
 def labels() -> dict[str, str]:
@@ -116,8 +119,16 @@ def summary():
                     "last_run": {k: v for k, v in runs.get(name, {}).items() if k != "source"} or None,
                 }
             )
+        usage = db.json.loads(db.get_state(con, "brian_usage", "{}"))
         return {
             "time": db.utcnow(),
+            "brian": {
+                "enabled": brian.enabled(),
+                "model": brian.MODEL,
+                "read": db.get_state(con, "brian_read"),
+                "read_at": db.get_state(con, "brian_read_at"),
+                "usage_today": usage.get(dt.date.today().isoformat(), {}),
+            },
             "sources": sources,
             "labels": labels(),
             "by_item_source": {k: {kk: vv for kk, vv in v.items() if kk != "source"} for k, v in counts.items()},
@@ -128,39 +139,6 @@ def summary():
         }
     finally:
         con.close()
-
-
-CHAIN_HOURS = 48  # how long after a Martin post we look for MSE and press pickup on the same topic
-
-
-def attach_chains(con, items: list[dict]) -> None:
-    """For Martin's own posts, count MSE and press items on a shared topic within CHAIN_HOURS afterwards."""
-    martin = [i for i in items if i["source"] in ("x_martinslewis", "instagram") and i.get("topics") and i.get("published_at")]
-    if not martin:
-        return
-    lo = min(i["published_at"] for i in martin)
-    hi = (dt.datetime.fromisoformat(max(i["published_at"] for i in martin)) + dt.timedelta(hours=CHAIN_HOURS)).isoformat(timespec="seconds")
-    followers = [
-        db.row_to_item(r)
-        for r in con.execute(
-            """SELECT id, source, author, title, url, published_at, topics_json, metrics_json FROM items
-               WHERE source IN ('mse_news', 'press', 'x_moneysavingexp') AND published_at BETWEEN ? AND ?""",
-            (lo, hi),
-        )
-    ]
-    for post in martin:
-        start = dt.datetime.fromisoformat(post["published_at"])
-        end = start + dt.timedelta(hours=CHAIN_HOURS)
-        topics = set(post["topics"])
-        hits = [
-            f for f in followers
-            if f.get("topics") and topics & set(f["topics"]) and start <= dt.datetime.fromisoformat(f["published_at"]) <= end
-        ]
-        if hits:
-            post["chain"] = {
-                "mse": [{"id": f["id"], "title": f["title"], "url": f["url"]} for f in hits if f["source"] in ("mse_news", "x_moneysavingexp")][:3],
-                "press": [{"id": f["id"], "title": f["title"], "url": f["url"], "publisher": f["author"]} for f in hits if f["source"] == "press"][:6],
-            }
 
 
 @app.get("/api/feed")
@@ -246,7 +224,7 @@ def insights(limit: int = Query(20, ge=1, le=100)):
             for key in ("impact_json", "actions_json", "evidence_json"):
                 d[key.removesuffix("_json")] = db.json.loads(d.pop(key) or "null")
             out.append(d)
-        return {"insights": out, "brian_enabled": bool(env("ANTHROPIC_API_KEY"))}
+        return {"insights": out, "brian_enabled": brian.enabled(), "read": db.get_state(con, "brian_read"), "read_at": db.get_state(con, "brian_read_at")}
     finally:
         con.close()
 
@@ -360,6 +338,74 @@ def backfill(
     except Exception as exc:
         db.record_run(con, f"backfill_{name}", started, False, 0, str(exc)[:500])
         raise HTTPException(502, str(exc)[:300])
+    finally:
+        con.close()
+
+
+def _caller(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    return (forwarded.split(",")[0].strip() if forwarded else request.client.host) or "unknown"
+
+
+class Question(BaseModel):
+    question: str
+
+
+@app.post("/api/brian/ask")
+def brian_ask_endpoint(q: Question, request: Request):
+    """Live, streamed answer from Brian. Public, so rate-limited per caller and capped in length."""
+    if not brian.enabled():
+        raise HTTPException(503, "Brian is not connected (ANTHROPIC_API_KEY not set)")
+    question = q.question.strip()
+    if not question or len(question) > 500:
+        raise HTTPException(400, "Ask a question of up to 500 characters")
+    caller = _caller(request)
+    if not brian_ask.allowed(f"ask:{caller}", brian.CFG.get("ask_per_hour", 20)):
+        raise HTTPException(429, "Brian needs a breather: too many questions from here this hour")
+
+    def events():
+        con = db.connect()
+        try:
+            for chunk in brian_ask.stream_answer(con, question, caller):
+                yield f"data: {db.json.dumps(chunk)}\n\n"
+            yield "event: done\ndata: {}\n\n"
+        except Exception as exc:
+            log.error("ask failed: %s", exc)
+            yield f"data: {db.json.dumps(' (Brian lost the thread: ' + type(exc).__name__ + ')')}\n\n"
+        finally:
+            con.close()
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/brian/view/{item_id}")
+def brian_view_endpoint(item_id: int, request: Request):
+    """Write Brian's view for one item on request (items outside the automatic set). Rate-limited per caller."""
+    if not brian.enabled():
+        raise HTTPException(503, "Brian is not connected (ANTHROPIC_API_KEY not set)")
+    if not brian_ask.allowed(f"view:{_caller(request)}", brian.CFG.get("views_per_hour", 30)):
+        raise HTTPException(429, "Too many requests this hour")
+    con = db.connect()
+    try:
+        return brian_views.view_item(con, item_id)
+    except LookupError:
+        raise HTTPException(404, "No such item")
+    except Exception as exc:
+        log.error("view failed: %s", exc)
+        raise HTTPException(502, f"Brian could not read it: {type(exc).__name__}")
+    finally:
+        con.close()
+
+
+@app.post("/api/brian/digest")
+def brian_digest_endpoint(x_admin_token: str | None = Header(default=None)):
+    """Force the digest now (admin)."""
+    _require_admin(x_admin_token)
+    if not brian.enabled():
+        raise HTTPException(503, "Brian is not connected (ANTHROPIC_API_KEY not set)")
+    con = db.connect()
+    try:
+        return {"insights": brian_digest.maybe_run(con, brian.CFG, force=True), "read": db.get_state(con, "brian_read")}
     finally:
         con.close()
 

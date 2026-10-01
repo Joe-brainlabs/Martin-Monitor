@@ -84,6 +84,21 @@ mse_guides:
     - https://www.moneysavingexpert.com/insurance/travel-insurance/
     - https://www.moneysavingexpert.com/insurance/cut-pet-insurance-costs/
 
+# Brian: the scheduled pass that writes a view on new items and the hourly digest. Only spends when
+# there is something new. Items from auto_sources always get a view; forum and Reddit threads need the
+# comment count shown; press stories need a CTM category tag. Anything else is on request from the page.
+brian:
+  every_minutes: 60
+  label: Brian
+  model: claude-opus-5-5
+  per_run_cap: 25
+  auto_sources: [x_martinslewis, instagram, x_moneysavingexp, mse_news, mse_guides]
+  loud_sources: {mse_forum: 20, reddit: 20}
+  press_with_topic: true
+  digest_hours: 24
+  ask_per_hour: 20           # live questions per caller per hour
+  views_per_hour: 30         # on-request views per caller per hour
+
 # CTM product categories. An item gets a topic when its title or text contains any phrase (case-insensitive).
 topics:
   car_insurance: [car insurance, motor insurance, car cover, black box, telematics, insurance premium]

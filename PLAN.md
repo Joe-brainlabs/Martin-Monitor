@@ -137,7 +137,7 @@ Rules that keep this safe with no login on the page:
 - Every Brian output carries the avatar, a confidence level and its evidence links, so the client can check him. He also says when he has no evidence.
 - Optional and off by default: give Brian the `web_search` server tool for questions like "what has Ofgem announced". It makes answers better and costs less predictable, so we turn it on only for the demo.
 
-Expected Brian spend at pitch usage: about $30 to $60 a month.
+Expected Brian spend at pitch usage: about $30 to $60 a month. Measured on 1 October: six views plus one digest cost 10 cents, and a live question about 4 cents, with the cached system prompt covering most of the input.
 
 ## Part 5: build order
 
@@ -148,7 +148,7 @@ Each phase leaves something you can show.
 | 0 | Done 30 Sep | Repo skeleton, SQLite, scheduler, pollers for all eight sources (X, Instagram, MSE news, MSE forum, press, YouTube, Trends, guide changes), feed page, Dockerfile and Railway config. First run stored 33 tweets, 10 Instagram posts, 20 articles, 300 threads, 104 press stories, 25 videos and 504 trend points | A live feed from every source on Joe's laptop, ready to deploy |
 | 1 | Done 30 Sep, bar the production backfill | Railway deploy with volume and health checks (Joe). Reddit poller. X engagement re-reads at 1, 6 and 24 hours. Backfill endpoints behind the admin token for X and Instagram; MSE news and press already reach back a month from their feeds | The same feed on a public URL, updating itself; history once the backfill commands are run |
 | 2 | Done 30 Sep, bar the iframe | Four tabs on the CTM tokens: Signals (hero, search, source and category filters, expandable cards with an obvious open-the-source button, pickup chain, Brian's View on every card, Brian's Insights panel), Demand (six Trends charts with Martin's posts marked, table view), Spread (press by publisher and day, forum boards, Reddit, YouTube), Sources (cadence, last and next run, category keywords, recent runs). Iframe into the CTM dashboard page still to do | The page you would show a client |
-| 3 | One day | Brian: `context.md` written with Joe, scheduled insights with the schema, Ask Brian streaming, prompt tuning against the backfilled month | Brian reading real signals and answering questions live |
+| 3 | Done 1 Oct, context file still to be corrected by Joe | Brian: per-item structured views written once and stored, hourly digest with the read of the day and evidence-linked insights, Ask Brian streaming, on-request views for anything outside the automatic set, spend tracking on the Sources tab. `context.md` is Claude's draft of CTM's business for Joe to fix | Brian reading real signals and answering questions live |
 | 4 | Half a day | Polish, freshness indicators, spend caps, security pass with `bl-vibe-code-security-guardrails`, README, Vibe Coding Log entry | Ready for the pitch |
 
 Four days of build, five with slack. Phase 0 can start before any key arrives.

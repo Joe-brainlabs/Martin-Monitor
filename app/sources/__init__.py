@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..config import SOURCES, env
+from ..brian import views as brian_views
 from . import instagram, mse_forum, mse_guides, mse_news, press, reddit, trends, x, youtube
 
 
@@ -43,10 +44,11 @@ REGISTRY: dict[str, Spec] = {
     "youtube": _spec("youtube", youtube, ("YOUTUBE_API_KEY",)),
     "trends": _spec("trends", trends, ("DECODO_USERNAME", "DECODO_PASSWORD")),
     "mse_guides": _spec("mse_guides", mse_guides),
+    "brian": _spec("brian", brian_views, ("ANTHROPIC_API_KEY",)),
 }
 
 # Items from the X poller are stored per handle (x_martinslewis, x_moneysavingexp); the UI needs labels for those.
 ITEM_SOURCE_LABELS: dict[str, str] = {
     **{f"x_{a['handle'].lower()}": a["label"] for a in SOURCES["x"]["handles"]},
-    **{name: spec.label for name, spec in REGISTRY.items() if name != "x"},
+    **{name: spec.label for name, spec in REGISTRY.items() if name not in ("x", "brian")},
 }

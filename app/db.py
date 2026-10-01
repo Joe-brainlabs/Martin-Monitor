@@ -65,6 +65,15 @@ CREATE TABLE IF NOT EXISTS runs (
   items_new INTEGER,
   error TEXT
 );
+CREATE TABLE IF NOT EXISTS asks (
+  id INTEGER PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  question TEXT NOT NULL,
+  answer TEXT,
+  caller TEXT,
+  input_tokens INTEGER,
+  output_tokens INTEGER
+);
 CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT);
 """
 

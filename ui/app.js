@@ -125,14 +125,15 @@ function renderHero() {
   const read = el("div", "hero__read");
   const avatar = el("img", "hero__avatar"); avatar.src = "brian.png"; avatar.alt = "Brian";
   const body = el("div");
-  body.append(el("div", "hero__eyebrow", "The last 24 hours"));
+  const brianRead = s.brian && s.brian.read;
+  body.append(el("div", "hero__eyebrow", brianRead ? "Brian's read of the last 24 hours" : "The last 24 hours"));
   const sentence = [
     martin ? `Martin posted ${martin} ${martin === 1 ? "time" : "times"} on X and Instagram.` : "Martin has not posted on X or Instagram in the last 24 hours.",
     topics.length ? `In play: ${topics.slice(0, 3).map(([t]) => nice(t)).join(", ")}.` : "",
     `${press} press ${press === 1 ? "story" : "stories"} mentioned him and ${forum} forum ${forum === 1 ? "thread was" : "threads were"} active.`,
   ].filter(Boolean).join(" ");
-  body.append(el("p", "hero__text", sentence));
-  body.append(el("p", "hero__note", state.insights?.brian_enabled ? "Brian's read of the day replaces this summary each hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
+  body.append(el("p", "hero__text", brianRead || sentence));
+  body.append(el("p", "hero__note", brianRead ? `${sentence} Written ${ago(s.brian.read_at)} by Brian (${s.brian.model}).` : state.insights?.brian_enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
   read.append(avatar, body);
   hero.append(read);
 
@@ -202,6 +203,7 @@ function brianView(item) {
     box.append(el("p", "brian-view__empty", "Brian hasn't read this one yet. Once the Anthropic key is connected he will say here what it means for Compare the Market: which product lines, which direction, how soon, and what to do about bids and budgets."));
     return box;
   }
+  if (b.relevance === "none") { box.classList.remove("has-view"); box.classList.add("is-none"); box.append(el("p", "brian-view__text", `Not one for CTM. ${b.summary || ""}`)); return box; }
   box.append(el("p", "brian-view__text", b.summary || b.headline || ""));
   if (Array.isArray(b.impact) && b.impact.length) {
     const wrap = el("div", "brian-view__impacts");
@@ -213,8 +215,22 @@ function brianView(item) {
     for (const a of b.actions) ul.append(el("li", null, typeof a === "string" ? a : a.text || JSON.stringify(a)));
     box.append(ul);
   }
-  if (b.confidence) box.append(el("div", "brian-view__conf", `Confidence: ${b.confidence}`));
+  if (b.confidence) box.append(el("div", "brian-view__conf", `Confidence ${b.confidence}${b.relevance ? ` · relevance ${b.relevance}` : ""}${b.created_at ? ` · ${ago(b.created_at)}` : ""}`));
   return box;
+}
+
+async function askBrianAbout(item, card) {
+  const btn = card.querySelector(".btn--brian");
+  if (btn) { btn.disabled = true; btn.replaceChildren(document.createTextNode("Brian is reading…")); }
+  try {
+    const r = await fetch(`/api/brian/view/${item.id}`, { method: "POST" });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    item.brian = await r.json();
+    state.brianOpen.add(item.id);
+    card.replaceWith(renderItem(item));
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.replaceChildren(document.createTextNode(`Brian couldn't read it: ${err.message}`)); }
+  }
 }
 
 function renderItem(item) {
@@ -293,17 +309,26 @@ function renderItem(item) {
     b.onclick = () => { if (isOpen) state.expanded.delete(item.id); else state.expanded.add(item.id); card.replaceWith(renderItem(item)); };
     foot.append(b);
   }
+  const brianOn = state.insights?.brian_enabled;
   const brianOpen = state.brianOpen.has(item.id) || !!item.brian;
   const bb = el("button", "btn btn--brian" + (brianOpen ? " is-on" : ""));
   const bimg = el("img"); bimg.src = "brian.png"; bimg.alt = "";
-  bb.append(bimg, document.createTextNode(item.brian ? "Brian's view" : "Brian's view (not yet)"), icon("chevron", "ico ico--sm ico--chev"));
-  bb.onclick = () => { if (state.brianOpen.has(item.id)) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
+  if (item.brian) {
+    bb.append(bimg, document.createTextNode(item.brian.relevance === "none" ? "Brian: not one for CTM" : "Brian's view"), icon("chevron", "ico ico--sm ico--chev"));
+    bb.onclick = () => { if (state.brianOpen.has(item.id)) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
+  } else if (brianOn) {
+    bb.append(bimg, document.createTextNode("Ask Brian about this"));
+    bb.onclick = () => askBrianAbout(item, card);
+  } else {
+    bb.append(bimg, document.createTextNode("Brian's view (not yet)"), icon("chevron", "ico ico--sm ico--chev"));
+    bb.onclick = () => { if (state.brianOpen.has(item.id)) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
+  }
   foot.append(bb);
   const metrics = el("div", "item__metrics");
   for (const part of metricsFor(item)) metrics.append(el("span", null, part));
   foot.append(metrics);
   card.append(foot);
-  if (brianOpen && (state.brianOpen.has(item.id) || item.brian)) card.append(brianView(item));
+  if (item.brian ? brianOpen : state.brianOpen.has(item.id)) card.append(brianView(item));
   return card;
 }
 
@@ -331,14 +356,62 @@ function renderBrianPanel() {
     for (const s of ["Which product line is affected, and which way demand moves", "How soon, and how big, with the evidence linked", "What to do about bids, budgets and creative"]) ul.append(el("li", null, s));
     card.append(ul);
     panel.append(card);
+    if (state.insights?.brian_enabled) panel.append(askBox());
     return;
   }
-  for (const ins of list) {
+  const latest = list[0].created_at;
+  for (const ins of list.filter((i) => i.created_at === latest)) {
     const card = el("div", "card insight");
-    card.append(el("div", "insight__head", ins.headline || ""), el("div", "insight__meta", `${fmtWhen(ins.created_at)}${ins.confidence ? ` · confidence ${ins.confidence}` : ""}`));
+    card.append(el("div", "insight__head", ins.headline || ""), el("div", "insight__meta", `${ago(ins.created_at)}${ins.confidence ? ` · confidence ${ins.confidence}` : ""}`));
     if (ins.body) card.append(el("p", null, ins.body));
+    if (Array.isArray(ins.impact) && ins.impact.length) {
+      const wrap = el("div", "brian-view__impacts");
+      for (const i of ins.impact) wrap.append(el("span", "impact", [nice(i.product), i.direction === "up" ? "▲" : i.direction === "down" ? "▼" : i.direction, i.magnitude, i.timing].filter(Boolean).join(" · ")));
+      card.append(wrap);
+    }
+    if (Array.isArray(ins.actions) && ins.actions.length) { const ul = el("ul", "brian-view__actions"); for (const a of ins.actions) ul.append(el("li", null, a)); card.append(ul); }
+    if (Array.isArray(ins.evidence) && ins.evidence.length) {
+      const ev = el("div", "insight__evidence"); ev.append(document.createTextNode("Evidence: "));
+      ins.evidence.slice(0, 5).forEach((id, i) => { if (i) ev.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; ev.append(a); });
+      card.append(ev);
+    }
     panel.append(card);
   }
+  panel.append(askBox());
+}
+
+function askBox() {
+  const box = el("div", "card ask");
+  box.append(el("div", "section-title", "Ask Brian"));
+  const ta = el("textarea", "ask__input"); ta.placeholder = "e.g. Should we raise car insurance bids this week?"; ta.rows = 2; ta.maxLength = 500;
+  const row = el("div", "ask__row");
+  const send = el("button", "btn btn--primary", "Ask");
+  const out = el("div", "ask__answer"); out.hidden = true;
+  const suggestions = el("div", "filters");
+  for (const q of ["What should CTM do about energy this week?", "Which product line is most exposed right now?", "Has anything Martin said been picked up by the press?"]) {
+    const c = el("button", "chip", q); c.onclick = () => { ta.value = q; send.click(); }; suggestions.append(c);
+  }
+  send.onclick = async () => {
+    const question = ta.value.trim();
+    if (!question) return;
+    send.disabled = true; out.hidden = false; out.replaceChildren(el("div", "ask__q", question), el("div", "ask__a", "…"));
+    const a = out.querySelector(".ask__a");
+    try {
+      const r = await fetch("/api/brian/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "", text = "";
+      for (;;) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n"); buf = parts.pop();
+        for (const p of parts) if (p.startsWith("data: ")) { text += JSON.parse(p.slice(6)); a.textContent = text; }
+      }
+    } catch (err) { a.textContent = `Brian couldn't answer: ${err.message}`; }
+    send.disabled = false;
+  };
+  row.append(send);
+  box.append(ta, row, suggestions, out);
+  return box;
 }
 
 // ---------- demand ----------
@@ -560,6 +633,13 @@ function renderSources() {
   }
   root.append(table);
 
+  if (state.summary.brian) {
+    const b = state.summary.brian, usage = b.usage_today || {};
+    const line = el("p", "lede", b.enabled
+      ? `Brian: ${usage.calls || 0} calls today (${usage.by_kind ? Object.entries(usage.by_kind).map(([k, v]) => `${v} ${k}`).join(", ") : "none"}), about $${(usage.cost_usd || 0).toFixed(2)}. Model ${b.model}. Views are written once per item; the digest runs hourly when there is something new.`
+      : "Brian is off: ANTHROPIC_API_KEY is not set.");
+    root.append(line);
+  }
   const topics = el("div", "section");
   topics.append(el("h3", "section-title", "How items get a CTM category"));
   topics.append(el("p", "lede", "An item is tagged with a category when its title or text contains one of these phrases as a whole word (case-insensitive). Brian will refine the tags once connected. Edit the lists in sources.yaml."));

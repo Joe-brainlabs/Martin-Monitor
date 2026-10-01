@@ -192,3 +192,15 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 td.err { color: var(--danger-text); font-size: 12px; max-width: 320px; }
 .section { margin-top: 22px; }
 .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 20px 28px 40px; }
+
+/* Brian: relevance none, Ask Brian */
+.brian-view.is-none { background: #fafafc; border: 1px solid var(--border); }
+.brian-view.is-none .brian-view__text { color: var(--t2); }
+.insight__evidence { margin-top: 8px; font-size: 12px; color: var(--t2); }
+.ask__input { width: 100%; border: 1px solid #d5d9e8; border-radius: 10px; padding: 8px 10px; font: inherit; resize: vertical; margin-top: 6px; }
+.ask__input:focus { outline: 0; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-t); }
+.ask__row { display: flex; justify-content: flex-end; margin: 8px 0; }
+.ask__answer { margin-top: 10px; border-top: 1px solid var(--border2); padding-top: 10px; }
+.ask__q { font-weight: 700; font-size: 13px; color: var(--navy); }
+.ask__a { margin-top: 6px; font-size: 13.5px; white-space: pre-line; background: var(--purple-t); border-radius: 10px; padding: 10px 12px; }
+.btn--brian:disabled { opacity: .7; cursor: progress; }
