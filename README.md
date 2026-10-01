@@ -36,11 +36,11 @@ Cadences, handles, boards, terms and the topic keyword lists live in `sources.ya
 Four tabs, all on the CTM dashboard's tokens and Figtree:
 
 - **Signals**: the last 24 hours in numbers, search, filters by source and CTM category, and the feed. Every card has a primary "Open on X / Read on MSE" button, an expand button when the text is long, and a **Brian's View** box (a placeholder until the Anthropic key is connected). Martin's posts show a "Picked up" chain when MSE or the press ran the same topic within 48 hours. The right-hand panel is Brian's Insights.
-- **Demand**: Google Trends for six CTM queries, weekly over 12 months or daily over 30 days, with a dot wherever Martin posted on that topic. Hover for values; a table view sits underneath.
+- **Demand**: Google Trends for 15 queries, at least one per CTM sub-brand, weekly over 12 months or daily over 30 days, with a dot wherever Martin posted on that topic. Hover for values; a table view sits underneath.
 - **Spread**: press pickup by publisher and per day, forum boards with active threads, Reddit and YouTube, last seven days.
 - **Sources**: cadence, last run, next run, stored counts, the category keyword lists, and recent runs.
 
-We store the full text of everything: whole tweets (including X's long posts via `note_tweet`), Instagram captions, MSE articles up to 30k characters, forum and Reddit posts up to 10k, YouTube descriptions. Press items are headline plus link only. Categories come from whole-word keyword matches on the lists in `sources.yaml` (shown on the Sources tab); Brian refines them in Phase 3.
+We store the full text of everything: whole tweets (including X's long posts via `note_tweet`), Instagram captions, MSE articles up to 30k characters, forum and Reddit posts up to 10k, YouTube descriptions. Press items are headline plus link only. Categories are the 14 CTM sub-brands from the CTM dashboard (Car, Home, Pet, Life, Travel, Health, Business, Energy, Broadband, Phones, Credit cards, Current accounts, Mortgages, Loans), matched as whole words with plurals on the keyword lists in `sources.yaml` (shown on the Sources tab). Brian's View gives his own corrected categories. Changing the lists and bumping `TOPICS_VERSION` in `app/sources/base.py` retags everything once at start-up.
 
 Source glyphs are original marks, not the platforms' logos. To use official brand assets, drop them into `ui/` and point the sprite symbols in `index.html` at them.
 

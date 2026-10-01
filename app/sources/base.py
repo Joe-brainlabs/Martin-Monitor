@@ -172,15 +172,52 @@ def meta_content(fragment: str, name: str) -> str | None:
 
 
 _TOPIC_PATTERNS = {
-    topic: re.compile(r"\b(?:" + "|".join(re.escape(p.lower()) for p in phrases) + r")\b")
+    topic: re.compile(r"\b(?:" + "|".join(re.escape(p.lower()) for p in phrases) + r")(?:e?s)?\b")
     for topic, phrases in SOURCES["topics"].items()
 }
 
 
 def tag_topics(text: str) -> list[str]:
-    """CTM product categories whose keyword phrases appear as whole words in the text (case-insensitive)."""
+    """CTM sub-brands whose keyword phrases appear as whole words in the text (case-insensitive, plurals allowed)."""
     lowered = text.lower()
     return [topic for topic, pattern in _TOPIC_PATTERNS.items() if pattern.search(lowered)]
+
+
+TOPICS_VERSION = "2026-10-01-subbrands"
+RENAMED = {"car_insurance": "car", "home_insurance": "home", "pet_insurance": "pet", "travel_insurance": "travel"}
+
+
+def retag_all(con) -> int:
+    """Recompute keyword categories on every stored item, and rename old keys inside Brian's views.
+    Runs once per TOPICS_VERSION, at start-up."""
+    from .. import db
+
+    if db.get_state(con, "topics_version") == TOPICS_VERSION:
+        return 0
+    rows = con.execute("SELECT id, source, title, text, brian_json FROM items").fetchall()
+    for r in rows:
+        topics = tag_topics(f"{r['title'] or ''} {r['text'] or ''}") if r["source"] != "reddit" else None
+        brian = r["brian_json"]
+        if brian:
+            view = json.loads(brian)
+            view["topics"] = [RENAMED.get(t, t) for t in view.get("topics", [])]
+            for impact in view.get("impact", []):
+                impact["product"] = RENAMED.get(impact.get("product"), impact.get("product"))
+            brian = json.dumps(view)
+        if topics is None:  # Reddit items keep their tags but get the new keys
+            old = con.execute("SELECT topics_json FROM items WHERE id = ?", (r["id"],)).fetchone()["topics_json"]
+            topics = [RENAMED.get(t, t) for t in json.loads(old or "[]")]
+            topics = sorted(set(topics) | set(tag_topics(f"{r['title'] or ''} {r['text'] or ''}")), key=list(SOURCES["topics"]).index)
+        con.execute("UPDATE items SET topics_json = ?, brian_json = ? WHERE id = ?", (json.dumps(topics), brian, r["id"]))
+    insights = con.execute("SELECT id, impact_json FROM insights").fetchall()
+    for r in insights:
+        impacts = json.loads(r["impact_json"] or "[]")
+        for impact in impacts:
+            impact["product"] = RENAMED.get(impact.get("product"), impact.get("product"))
+        con.execute("UPDATE insights SET impact_json = ? WHERE id = ?", (json.dumps(impacts), r["id"]))
+    con.commit()
+    db.set_state(con, "topics_version", TOPICS_VERSION)
+    return len(rows)
 
 
 def mentions(text: str, terms: list[str]) -> bool:

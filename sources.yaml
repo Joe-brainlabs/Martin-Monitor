@@ -66,12 +66,21 @@ trends:
   geo: WORLD               # Decodo rejects geo on this target, so the series is worldwide by decision (30 Sep 2026)
   recent_days: 30          # a second, daily-resolution pull for the recent view
   terms:
-    - {term: cheap car insurance, topic: car_insurance}
-    - {term: car insurance renewal, topic: car_insurance}
-    - {term: home insurance quotes, topic: home_insurance}
+    - {term: cheap car insurance, topic: car}
+    - {term: car insurance renewal, topic: car}
+    - {term: home insurance quotes, topic: home}
     - {term: best broadband deals, topic: broadband}
     - {term: energy price cap, topic: energy}
-    - {term: pet insurance cost, topic: pet_insurance}
+    - {term: pet insurance cost, topic: pet}
+    - {term: life insurance uk, topic: life}
+    - {term: travel insurance uk, topic: travel}
+    - {term: health insurance uk, topic: health}
+    - {term: business insurance uk, topic: business}
+    - {term: sim only deals, topic: phones}
+    - {term: balance transfer credit card, topic: credit_cards}
+    - {term: switch bank account, topic: current_accounts}
+    - {term: remortgage, topic: mortgages}
+    - {term: personal loan uk, topic: loans}
 
 mse_guides:
   every_minutes: 1440       # daily for now (Joe, 30 Sep 2026); see PLAN.md for the target cadence
@@ -99,12 +108,37 @@ brian:
   ask_per_hour: 20           # live questions per caller per hour
   views_per_hour: 30         # on-request views per caller per hour
 
-# CTM product categories. An item gets a topic when its title or text contains any phrase (case-insensitive).
+# CTM product categories: one per sub-brand in the CTM dashboard (ctm-dashboard/src/data/verticals.json),
+# in the same order and with the same names. An item gets a category when its title or text contains any
+# phrase as a whole word, case-insensitive, with plurals allowed ("credit card" also matches "credit cards").
+topic_labels:
+  car: Car
+  home: Home
+  pet: Pet
+  life: Life
+  travel: Travel
+  health: Health
+  business: Business
+  energy: Energy
+  broadband: Broadband
+  phones: Phones
+  credit_cards: Credit cards
+  current_accounts: Current accounts
+  mortgages: Mortgages
+  loans: Loans
+
 topics:
-  car_insurance: [car insurance, motor insurance, car cover, black box, telematics, insurance premium]
-  home_insurance: [home insurance, contents insurance, buildings insurance, home cover]
-  pet_insurance: [pet insurance, vet bills, vet fees]
-  travel_insurance: [travel insurance, ghic, ehic, holiday cover]
-  energy: [energy, price cap, ofgem, electricity, gas bill, standing charge, smart meter, fixed tariff, warm home discount]
-  broadband: [broadband, wifi, fibre, sim only, mobile contract, phone contract, mid-contract price]
-  credit_cards: [credit card, balance transfer, 0% card, credit score, credit file, section 75, apr]
+  car: [car insurance, motor insurance, car cover, black box insurance, telematics, van insurance, bike insurance, motorbike insurance, learner driver insurance, no claims discount, no claims bonus]
+  home: [home insurance, contents insurance, buildings insurance, home cover, landlord insurance, home emergency cover]
+  pet: [pet insurance, vet bill, vet fee, vet cost]
+  life: [life insurance, life cover, life assurance, critical illness cover, income protection, term insurance]
+  travel: [travel insurance, ghic, ehic, holiday cover, travel cover]
+  health: [health insurance, private medical insurance, private health cover, dental insurance, health cash plan]
+  business: [business insurance, public liability, professional indemnity, business energy, business broadband, employers liability]
+  energy: [energy, energy bill, price cap, ofgem, electricity, gas bill, standing charge, smart meter, fixed tariff, energy tariff, energy supplier, warm home discount]
+  broadband: [broadband, wifi, wi-fi, full fibre, fibre broadband, internet provider, mid-contract price rise]
+  phones: [sim only, sim-only, mobile contract, phone contract, mobile phone deal, phone deal, mobile network, roaming charge, handset, mid-contract price rise]
+  credit_cards: [credit card, balance transfer, 0% card, purchase card, section 75, credit score, credit file, credit report]
+  current_accounts: [current account, bank account, switching bonus, bank switching, switch bank, current account switch, overdraft]
+  mortgages: [mortgage, remortgage, remortgaging, first-time buyer, mortgage rate, base rate]
+  loans: [personal loan, unsecured loan, debt consolidation, car loan, guarantor loan, loan rate]

@@ -6,9 +6,9 @@ reasonable inference; nothing comes from the client. Fix anything wrong before t
 ## The business
 
 Compare the Market (CTM, comparethemarket.com) is a UK price comparison website, part of the BGL Group.
-People come to compare and switch: car insurance, home insurance (buildings and contents), pet insurance,
-travel insurance, life insurance, van and bike insurance, energy tariffs, broadband and mobile deals,
-credit cards, loans and mortgages. The meerkat brand (Aleksandr, Sergei) and Meerkat Meals and Meerkat
+People come to compare and switch. CTM runs fourteen sub-brands, and these are the categories you use:
+Car (including van and bike), Home, Pet, Life, Travel, Health, Business, Energy, Broadband, Phones,
+Credit cards, Current accounts, Mortgages and Loans. The meerkat brand (Aleksandr, Sergei) and Meerkat Meals and Meerkat
 Movies rewards are the consumer hook: buy through CTM, get the rewards.
 
 CTM makes money when a visitor clicks through and buys from an insurer, energy supplier, broadband
@@ -57,8 +57,10 @@ What a Martin Lewis moment does to CTM's world:
 
 - Say which CTM product lines it touches, which way comparison demand moves (up, down, mixed, none),
   how big the move is likely to be, and when. Be concrete about the action.
-- Not everything matters. Student loans, pensions, benefits, bank switching bonuses, Clubcard vouchers
-  and most consumer rights stories are not CTM's business. Say so plainly: relevance none or low.
+- Not everything matters. Student loans, pensions, benefits, tax, savings rates on their own, Clubcard and
+  loyalty vouchers, and most consumer rights and redress stories are not CTM's business. Say so plainly:
+  relevance none or low. Bank switching bonuses are relevant (Current accounts), and base rate news is
+  relevant to Mortgages and Loans.
 - Never invent numbers. Use the engagement figures given; describe size in words otherwise.
 - Prefer the smallest true statement over the biggest plausible one. The client will check.
 - British English. Plain words. No hype.

@@ -88,7 +88,7 @@ Five tables, all in SQLite.
 - `insights`: Brian's output. `headline`, `body`, `impact_json` (product line, direction, expected size, timing window), `actions_json`, `confidence`, `evidence_item_ids`, `model`, `created_at`.
 - `runs`: `source`, `started_at`, `ok`, `items_new`, `error`. Drives the health strip in the UI.
 
-Topics are CTM product categories (car insurance, home insurance, pet insurance, travel insurance, energy, broadband, credit cards). A keyword pass tags each item on arrival; Brian corrects the tags in his hourly pass.
+Topics are the 14 CTM sub-brands, named as in the CTM dashboard: Car, Home, Pet, Life, Travel, Health, Business, Energy, Broadband, Phones, Credit cards, Current accounts, Mortgages, Loans (aligned 1 October). A keyword pass tags each item on arrival; Brian corrects the tags in his hourly pass.
 
 ### API
 

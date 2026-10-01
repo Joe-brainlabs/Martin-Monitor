@@ -64,7 +64,7 @@ const until = (iso) => {
 };
 const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 const shortDate = (ymd) => (ymd ? new Date(ymd + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "");
-const nice = (topic) => (topic || "").replace(/_/g, " ");
+const nice = (topic) => (state.summary && state.summary.topic_labels && state.summary.topic_labels[topic]) || (topic || "").replace(/_/g, " ");
 const num = (n) => (n === null || n === undefined ? "" : n >= 1000000 ? `${(n / 1000000).toFixed(1)}m` : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
 const cadence = (m) => (m % 1440 === 0 ? (m === 1440 ? "daily" : `every ${m / 1440} d`) : m >= 60 ? `every ${m / 60} h` : `every ${m} min`);
 const getJSON = async (url) => {
@@ -646,9 +646,9 @@ function renderSources() {
   }
   const topics = el("div", "section");
   topics.append(el("h3", "section-title", "How items get a CTM category"));
-  topics.append(el("p", "lede", "An item is tagged with a category when its title or text contains one of these phrases as a whole word (case-insensitive). Brian will refine the tags once connected. Edit the lists in sources.yaml."));
+  topics.append(el("p", "lede", "One category per Compare the Market sub-brand, named as in the CTM dashboard. An item is tagged when its title or text contains one of these phrases as a whole word (case-insensitive, plurals allowed). Brian's View gives his own corrected categories. Edit the lists in sources.yaml."));
   const tt = el("table", "data");
-  const th = el("tr"); th.append(el("th", null, "Category"), el("th", null, "Phrases")); tt.append(th);
+  const th = el("tr"); th.append(el("th", null, "Sub-brand"), el("th", null, "Phrases")); tt.append(th);
   for (const [t, phrases] of Object.entries(state.summary.topic_defs)) { const r = el("tr"); r.append(el("td", null, nice(t)), el("td", null, phrases.join(", "))); tt.append(r); }
   topics.append(tt);
   root.append(topics);

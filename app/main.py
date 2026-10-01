@@ -28,6 +28,14 @@ log = logging.getLogger("martin")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
+    from .sources.base import retag_all
+    con = db.connect()
+    try:
+        retagged = retag_all(con)
+        if retagged:
+            log.info("retagged %d items for the CTM sub-brand categories", retagged)
+    finally:
+        con.close()
     scheduler = build() if os.getenv("SCHEDULER", "1") == "1" else None
     app.state.scheduler = scheduler
     if scheduler:
@@ -146,6 +154,7 @@ def summary():
             "topics_24h": topics,
             "topic_names": list(SOURCES["topics"]),
             "topic_defs": SOURCES["topics"],
+            "topic_labels": SOURCES.get("topic_labels", {}),
             "trend_terms": [t if isinstance(t, dict) else {"term": t, "topic": None} for t in SOURCES["trends"]["terms"]],
         }
     finally:
