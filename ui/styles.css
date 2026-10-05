@@ -123,8 +123,9 @@ a.chain--cross:hover { border-color: var(--blue); background: var(--b300); text-
 .empty { text-align: center; color: var(--t2); padding: 40px 0; }
 
 /* Brian's view: Impact on CTM, then what CTM could do, each action tagged with its lever */
-.brian-view__section { margin-top: 10px; font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--t2); }
-.brian-view__section + .brian-view__impacts, .brian-view__section + .brian-view__actions { margin-top: 5px; }
+.brian-view__section { margin-top: 14px; font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--t2); }
+.brian-view__section + .brian-view__impacts, .brian-view__section + .brian-view__actions { margin-top: 6px; }
+.brian-view__section + .plays { margin-top: 7px; }
 .brian-view__actions li { margin: 4px 0; }
 .lever { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 1px 7px; border-radius: 6px; margin-right: 6px; vertical-align: 1px; background: #fff; border: 1px solid #e3ccff; color: var(--purple); }
 .lever--bids, .lever--budgets { color: var(--blue); border-color: var(--b200); }
@@ -145,18 +146,25 @@ a.chain--cross:hover { border-color: var(--blue); background: var(--b300); text-
 .brian-view__impacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .impact { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: #fff; border: 1px solid #e3ccff; color: var(--navy); }
 .brian-view__actions { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
-/* What CTM could do, one row per channel team: a channel tag on the left, the lever-tagged actions on the right. */
+/* What CTM could do, one panel per channel team. Each panel is a white strip with a coloured rail on the left in the
+   channel's colour, the channel tag in a fixed column, then the lever-tagged actions. The lever tags share a width so
+   the action text lines up down the card. */
 .plays { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
-.play { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 10px; align-items: start; }
-.play .brian-view__actions { margin: 0; padding-left: 0; list-style: none; }
-.play .brian-view__actions li { margin: 0 0 4px; }
-.play__none { font-size: 13px; color: var(--t2); padding-top: 1px; }
-.channel { justify-self: start; display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; color: #fff; background: var(--purple); white-space: nowrap; margin-top: 1px; }
-.channel--search { background: var(--blue); }
-.channel--programmatic { background: var(--magenta); }
-.channel--seo { background: var(--success-text); }
+.play { --rail: var(--purple); display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 0 14px; align-items: start; background: #fff; border: 1px solid #e9dcf9; border-left: 3px solid var(--rail); border-radius: 10px; padding: 9px 12px 9px 11px; }
+.play--search { --rail: var(--blue); }
+.play--programmatic { --rail: var(--magenta); }
+.play--seo { --rail: var(--success-text); }
+.play--other { --rail: #c5c9d6; border-style: dashed; border-left-style: solid; background: transparent; }
+.play__label { display: flex; align-items: center; min-height: 24px; align-self: stretch; border-right: 1px solid var(--border); padding-right: 10px; }
+.play .brian-view__actions { margin: 0; padding-left: 0; list-style: none; font-size: 13.5px; }
+.play .brian-view__actions li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 0 8px; align-items: start; margin: 0; padding: 3px 0; line-height: 1.45; }
+.play .brian-view__actions li + li { border-top: 1px solid var(--border2); }
+.play .brian-view__actions li > .lever { margin: 2px 0 0; justify-self: start; }
+.play .brian-view__actions li.no-lever { grid-template-columns: minmax(0, 1fr); }
+.play__none { font-size: 13px; color: var(--t2); padding: 4px 0; font-style: italic; }
+.channel { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; color: #fff; background: var(--rail, var(--purple)); white-space: nowrap; }
 .channel--other { background: transparent; color: var(--t2); border: 1px solid var(--border); padding: 2px 7px; }
-.brian-view__conf { margin-top: 6px; font-size: 12px; color: var(--t2); }
+.brian-view__conf { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e9dcf9; font-size: 12px; color: var(--t2); }
 
 /* Brian's Highlights: one card at the top. A navy header with Brian's read of the last 24 hours and the day's counts,
    then one headline per channel (Search, Programmatic, SEO) and anything else worth a line. Click a row for its detail. */
@@ -341,7 +349,9 @@ td.err { color: var(--danger-text); font-size: 12px; max-width: 320px; white-spa
   .headline__text { grid-column: 1; grid-row: 1; font-size: 14px; }
   .headline__meta { grid-column: 1; grid-row: 2; white-space: normal; flex-wrap: wrap; row-gap: 4px; }
   .headline__chev { grid-column: 2; grid-row: 1; }
-  .play { grid-template-columns: 1fr; gap: 4px; }
+  .play { grid-template-columns: 1fr; gap: 6px; padding: 8px 10px 8px 9px; }
+  .play__label { border-right: 0; padding-right: 0; min-height: 0; }
+  .play .brian-view__actions li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .headline__detail { padding: 0 12px 14px; }
   .filters--sources { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .filters--sources::-webkit-scrollbar { display: none; }

@@ -149,9 +149,10 @@ function metricsFor(item) {
 function actionList(actions) {
   const ul = el("ul", "brian-view__actions");
   for (const a of actions) {
-    const li = el("li");
-    if (a && typeof a === "object" && a.lever) { const tag = el("span", `lever lever--${a.lever}`, a.lever); tag.title = LEVERS[a.lever] || ""; li.append(tag); }
-    li.append(document.createTextNode(typeof a === "string" ? a : a.text || JSON.stringify(a)));
+    const hasLever = a && typeof a === "object" && a.lever;
+    const li = el("li", hasLever ? null : "no-lever");
+    if (hasLever) { const tag = el("span", `lever lever--${a.lever}`, a.lever); tag.title = LEVERS[a.lever] || ""; li.append(tag); }
+    li.append(el("span", "action__text", typeof a === "string" ? a : a.text || JSON.stringify(a)));
     ul.append(li);
   }
   return ul;
@@ -241,8 +242,8 @@ function brianView(item) {
     for (const [k, name] of VIEW_CHANNELS) {
       const acts = Array.isArray(b[k]) ? b[k] : [];
       if (!acts.length && (k === "other" || !showEmpty)) continue;
-      const row = el("div", "play");
-      row.append(el("span", `channel channel--${k}`, name));
+      const row = el("div", `play play--${k}`);
+      const label = el("div", "play__label"); label.append(el("span", `channel channel--${k}`, name)); row.append(label);
       row.append(acts.length ? actionList(acts) : el("span", "play__none", "No move for this channel"));
       plays.append(row);
     }
