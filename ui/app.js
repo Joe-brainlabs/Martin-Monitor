@@ -17,7 +17,7 @@ const SOURCE_META = {
 };
 
 const state = {
-  tab: "signals", source: null, topic: null, q: "",
+  tab: "signals", source: null, q: "",
   summary: null, feed: [], insights: null, spread: null, runs: [],
   trends: {}, resolution: "weekly", martinPosts: null, showTable: false,
   expanded: new Set(), brianToggled: new Set(),
@@ -98,7 +98,6 @@ document.querySelector(".brand").onclick = (e) => { e.preventDefault(); setTab("
 async function loadSignals() {
   const params = new URLSearchParams({ limit: "150" });
   if (state.source) params.set("source", state.source);
-  if (state.topic) params.set("topic", state.topic);
   if (state.q) params.set("q", state.q);
   if (!state.showLow) params.set("hide_low", "1");
   const [summary, feed, insights, spread] = await Promise.all([
@@ -132,17 +131,6 @@ function renderFilters() {
     chip.onclick = () => { state.source = state.source === key ? null : key; loadSignals(); };
     sources.append(chip);
   }
-  // The fourteen CTM categories live in one dropdown rather than a row of chips. A card's category chip sets it too.
-  const select = document.getElementById("topic-select");
-  select.replaceChildren();
-  const any = el("option", null, "All categories"); any.value = ""; select.append(any);
-  for (const t of state.summary.topic_names) {
-    const o = el("option", null, nice(t)); o.value = t; o.title = `Items whose text contains: ${(state.summary.topic_defs[t] || []).join(", ")}`;
-    select.append(o);
-  }
-  select.value = state.topic || "";
-  select.classList.toggle("is-active", !!state.topic);
-  select.onchange = () => { state.topic = select.value || null; loadSignals(); };
 }
 
 const count = (n, one, many = `${one}s`) => (n === null || n === undefined ? "" : `${num(n)} ${n === 1 ? one : many}`);
@@ -274,12 +262,7 @@ function renderItem(item) {
   badge.append(icon(meta.glyph), document.createTextNode(label(item.source)));
   head.append(badge);
   if (item.author) head.append(el("span", null, item.author));
-  for (const t of item.topics || []) {
-    const chip = el("button", "topic", nice(t));
-    chip.title = `Filter by ${nice(t)}`;
-    chip.onclick = () => { state.topic = t; loadSignals(); };
-    head.append(chip);
-  }
+  for (const t of item.topics || []) { const tag = el("span", "topic", nice(t)); tag.title = "CTM category"; head.append(tag); }
   const bumped = item.metrics && item.metrics.last_comment_at && item.metrics.last_comment_at !== item.published_at;
   const when = item.url ? el("a", "item__time") : el("span", "item__time");
   when.textContent = (bumped ? "active " : "") + ago(item.activity_at || item.published_at || item.first_seen_at);
@@ -631,7 +614,7 @@ function renderDemand() {
     const card = el("div", "card chart");
     const head = el("div", "chart__head");
     const left = el("div"); left.append(el("div", "chart__term", t.term));
-    if (t.topic) { const chip = el("button", "topic", nice(t.topic)); chip.onclick = () => { state.topic = t.topic; setTab("signals"); }; left.append(chip); }
+    if (t.topic) left.append(el("span", "topic", nice(t.topic)));
     head.append(left);
     if (series.length >= 2) {
       const last = series[series.length - 1], prev = series[series.length - 2];
