@@ -257,7 +257,7 @@ def trends(term: str | None = None, resolution: str = "weekly"):
 
 @app.get("/api/insights")
 def insights(limit: int = Query(20, ge=1, le=100)):
-    """Brian's Highlights: newest digest first; inside a digest search, programmatic, seo, then other (insert order)."""
+    """Brian's Highlights: newest digest first; inside a digest, most important first (insert order)."""
     con = db.connect()
     try:
         rows = con.execute("SELECT * FROM insights ORDER BY created_at DESC, id ASC LIMIT ?", (limit,)).fetchall()

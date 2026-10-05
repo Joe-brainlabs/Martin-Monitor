@@ -26,8 +26,8 @@ def allowed(key: str, per_hour: int) -> bool:
 
 def _grounding(con) -> str:
     read = db.get_state(con, "brian_read") or "No read written yet."
-    rows = con.execute("SELECT channel, headline, body, confidence FROM insights ORDER BY id DESC LIMIT 6").fetchall()
-    insights = "\n".join(f"- [{r['channel'] or 'general'}] {r['headline']} ({r['confidence']}): {r['body']}" for r in rows) or "- none yet"
+    rows = con.execute("SELECT headline, body, confidence FROM insights ORDER BY id DESC LIMIT 6").fetchall()
+    insights = "\n".join(f"- {r['headline']} ({r['confidence']}): {r['body']}" for r in rows) or "- none yet"
     return f"Brian's latest read: {read}\n\nLatest insights:\n{insights}\n\n{context_pack(con, 48)}"
 
 

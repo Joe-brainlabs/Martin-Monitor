@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS insights (
   created_at TEXT NOT NULL,
   window_start TEXT,
   window_end TEXT,
-  channel TEXT,
   headline TEXT,
   body TEXT,
   impact_json TEXT,
@@ -97,9 +96,6 @@ def init() -> None:
         columns = {r["name"] for r in con.execute("PRAGMA table_info(items)")}
         if "brian_json" not in columns:  # databases created before Brian's View existed
             con.execute("ALTER TABLE items ADD COLUMN brian_json TEXT")
-        columns = {r["name"] for r in con.execute("PRAGMA table_info(insights)")}
-        if "channel" not in columns:  # databases created before the digest had channel slots (search, programmatic, seo)
-            con.execute("ALTER TABLE insights ADD COLUMN channel TEXT")
 
 
 def get_state(con: sqlite3.Connection, key: str, default: str | None = None) -> str | None:

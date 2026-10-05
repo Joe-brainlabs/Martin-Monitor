@@ -216,6 +216,9 @@ function martometer(item) {
   return box;
 }
 
+// Brian's View on a card: the summary, the impact, then what each channel team should do (Search, Programmatic, SEO,
+// plus anything else). Views written before the channel sections existed carry a flat `actions` list; those still render.
+const VIEW_CHANNELS = [["search", "Search"], ["programmatic", "Programmatic"], ["seo", "SEO"], ["other", "Also"]];
 function brianView(item) {
   const box = el("div", "brian-view" + (item.brian ? " has-view" : ""));
   const head = el("div", "brian-view__head");
@@ -224,13 +227,29 @@ function brianView(item) {
   box.append(head);
   const b = item.brian;
   if (!b) {
-    box.append(el("p", "brian-view__empty", "Brian hasn't read this one yet. Once the Anthropic key is connected he will say here what it means for Compare the Market: which product lines, which direction, how soon, and what to do about bids and budgets."));
+    box.append(el("p", "brian-view__empty", "Brian hasn't read this one yet. Once the Anthropic key is connected he will say here what it means for Compare the Market: which product lines, which direction, how soon, and what Search, Programmatic and SEO should do about it."));
     return box;
   }
   if (b.relevance === "none") { box.classList.remove("has-view"); box.classList.add("is-none"); box.append(el("p", "brian-view__text", `Not one for CTM. ${b.summary || ""}`)); return box; }
   box.append(el("p", "brian-view__text", b.summary || b.headline || ""));
   if (Array.isArray(b.impact) && b.impact.length) box.append(el("div", "brian-view__section", "Impact on CTM"), impactList(b.impact));
-  if (Array.isArray(b.actions) && b.actions.length) box.append(el("div", "brian-view__section", "What CTM could do"), actionList(b.actions));
+  const channelled = VIEW_CHANNELS.some(([k]) => Array.isArray(b[k]));
+  if (channelled) {
+    // Medium and high relevance show all three channel rows, so an empty one reads as a decision, not an omission.
+    const showEmpty = b.relevance === "high" || b.relevance === "medium";
+    const plays = el("div", "plays");
+    for (const [k, name] of VIEW_CHANNELS) {
+      const acts = Array.isArray(b[k]) ? b[k] : [];
+      if (!acts.length && (k === "other" || !showEmpty)) continue;
+      const row = el("div", "play");
+      row.append(el("span", `channel channel--${k}`, name));
+      row.append(acts.length ? actionList(acts) : el("span", "play__none", "No move for this channel"));
+      plays.append(row);
+    }
+    if (plays.childNodes.length) box.append(el("div", "brian-view__section", "What CTM could do"), plays);
+  } else if (Array.isArray(b.actions) && b.actions.length) {
+    box.append(el("div", "brian-view__section", "What CTM could do"), actionList(b.actions));
+  }
   if (b.confidence) box.append(el("div", "brian-view__conf", `Confidence ${b.confidence}${b.relevance ? ` · relevance ${b.relevance}` : ""}${b.created_at ? ` · ${ago(b.created_at)}` : ""}`));
   return box;
 }
@@ -367,20 +386,18 @@ function setShowLow(on) { state.showLow = on; document.getElementById("show-low"
 document.getElementById("show-low").onchange = (e) => setShowLow(e.target.checked);
 
 // Brian's Highlights: one section at the top of the page. The header carries Brian's read of the last 24 hours and
-// the day's counts; beneath it, one headline per channel (Search, Programmatic, SEO), newest per channel, then anything
-// else worth a line, five at most. Click a headline for the detail; one open at a time. Ask Brian sits at the foot.
+// the day's counts; beneath it, up to five headlines, newest first, each with the levers it pulls. Click a headline
+// for the detail; one open at a time. Ask Brian sits at the foot.
 const MAX_HEADLINES = 5;
-const CHANNELS = { search: "Search", programmatic: "Programmatic", seo: "SEO" };
 function pickHighlights(all) {
-  const byChannel = {}, others = [], seen = new Set();
+  const seen = new Set(), list = [];
   for (const ins of all) {  // newest first from the API
     const key = (ins.headline || "").trim().toLowerCase();
     if (!key || seen.has(key)) continue;  // the digest can restate a headline across runs; show it once
-    seen.add(key);
-    if (CHANNELS[ins.channel]) { if (!byChannel[ins.channel]) byChannel[ins.channel] = ins; }
-    else others.push(ins);
+    seen.add(key); list.push(ins);
+    if (list.length === MAX_HEADLINES) break;
   }
-  return [...Object.keys(CHANNELS).map((c) => byChannel[c]).filter(Boolean), ...others].slice(0, MAX_HEADLINES);
+  return list;
 }
 
 function renderHighlights() {
@@ -433,7 +450,7 @@ function renderHighlights() {
     const wait = el("div", "highlights__waiting");
     wait.append(el("p", null, enabled ? "No highlights written yet. The first pass runs within the hour." : "Once the key is in, Brian reads the new signals every hour and writes here what they mean for Compare the Market:"));
     const ul = el("ul");
-    for (const t of ["Which product line is affected, and which way demand moves", "One recommendation each for Search, Programmatic and SEO", "The evidence behind each, linked"]) ul.append(el("li", null, t));
+    for (const t of ["Which product line is affected, and which way demand moves", "How soon, and how big, with the evidence linked", "What to do about it, with the lever each action pulls"]) ul.append(el("li", null, t));
     wait.append(ul);
     root.append(wait);
   } else {
@@ -451,8 +468,7 @@ function headlineRow(ins) {
   const btn = el("button", "headline__btn");
   btn.setAttribute("aria-expanded", String(open));
   btn.setAttribute("aria-controls", `insight-${ins.id}`);
-  const channel = CHANNELS[ins.channel];
-  btn.append(el("span", "channel " + (channel ? `channel--${ins.channel}` : "channel--other"), channel || "Also"), el("span", "headline__text", ins.headline || ""));
+  btn.append(el("span", "headline__text", ins.headline || ""));
   const meta = el("span", "headline__meta");
   const levers = [...new Set((ins.actions || []).map((a) => a && typeof a === "object" && a.lever).filter(Boolean))];
   for (const l of levers.slice(0, 3)) { const tag = el("span", `lever lever--${l}`, l); tag.title = LEVERS[l] || ""; meta.append(tag); }

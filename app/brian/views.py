@@ -37,7 +37,19 @@ class View(BaseModel):
     relevance: Literal["none", "low", "medium", "high"] = Field(description="How much this matters to Compare the Market")
     summary: str = Field(description="One or two plain sentences: what this means for CTM. If relevance is none, say why in one sentence.")
     impact: list[Impact] = Field(description="Which CTM product lines move, which way, how much and when. Empty when relevance is none")
-    actions: list[Action] = Field(description="Up to three concrete actions for CTM's media team, each tagged with the lever it pulls. Empty when there is nothing to do.")
+    search: list[Action] = Field(
+        description="Paid search: up to two actions for CTM's search team (bids, budgets, query coverage, ad copy that echoes his phrasing). "
+        "Empty when this item gives paid search nothing to do."
+    )
+    programmatic: list[Action] = Field(
+        description="Programmatic: display, online video including YouTube, connected TV and audio. Up to two actions (targeting, creative, "
+        "budgets or pacing). Empty when this item gives programmatic nothing to do."
+    )
+    seo: list[Action] = Field(
+        description="SEO and content: up to two actions (which guide or page to publish or refresh, which query, how to word the title, timing). "
+        "Empty when this item gives organic nothing to do."
+    )
+    other: list[Action] = Field(description="Anything that fits none of the three channels: pr or watch. Usually empty.")
     topics: list[Topic] = Field(description="The CTM categories this item is really about (corrects the keyword tags)")
     confidence: Literal["low", "medium", "high"]
 
@@ -97,7 +109,8 @@ def item_prompt(item: dict, parent: str | None = None) -> str:
         f"title: {item.get('title') or ''}\n"
         + (f"in reply to (earlier post in the same thread): {parent[:1500]}\n" if parent else "")
         + f"\n{(item.get('text') or '')[:6000]}\n</item>\n\n"
-        "Assess this item for Compare the Market."
+        "Assess this item for Compare the Market: the impact, then what each channel team should do about it (paid search, "
+        "programmatic, SEO). Leave a channel empty when the item gives it nothing: an empty section beats a padded one."
     )
 
 

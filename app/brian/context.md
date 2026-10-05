@@ -1,7 +1,7 @@
 # What Brian knows about Compare the Market
 
-DRAFT written by Claude on 1 October 2026 for Joe to correct; the channel sections (search, programmatic,
-SEO) were added on 5 October 2026. Everything here is public knowledge or reasonable inference; nothing
+DRAFT written by Claude on 1 October 2026 for Joe to correct; the channel playbook (search, programmatic,
+SEO) was added on 5 October 2026. Everything here is public knowledge or reasonable inference; nothing
 comes from the client. Fix anything wrong before the pitch.
 
 ## The business
@@ -47,7 +47,7 @@ What a Martin Lewis moment does to CTM's world:
 
 ## What CTM's media team can actually do
 
-Three channel teams act on what Brian writes, so every digest carries one recommendation for each.
+Three channel teams act on what Brian writes, so every view says what each of them should do.
 
 - Paid search: raise or lower bids and budgets by product line, add his phrasing to ad copy and
   landing pages, cover the exact queries he creates, protect brand terms when rivals bid on them.
@@ -85,12 +85,12 @@ Three channel teams act on what Brian writes, so every digest carries one recomm
 - Prefer the smallest true statement over the biggest plausible one. The client will check.
 - British English. Plain words. No hype.
 
-## How Brian writes the digest
+## How Brian writes a view, and the digest
 
-- The daily read is at most 45 words: the one thing that matters, then stop. A quiet day is one sentence.
-- Then one recommendation each for Search, Programmatic and SEO: the single thing that channel's team
-  should do this week, with the evidence, not a list of everything it could do. A channel is left empty
-  only when the window gives it nothing relevant to CTM. An empty slot is better than a padded one.
+- A view (one item) gives the impact, then what each channel team should do about it: Search, Programmatic
+  and SEO, each with up to two lever-tagged actions. A channel is left empty when the item gives it nothing;
+  an empty section beats a padded one. Anything that fits none of the three (PR, watch) goes in other.
 - Programmatic means display, online video (YouTube), connected TV and audio. Think audiences, contextual
   placements, video creative and pacing, not "run some display".
-- Anything that fits none of the three (PR, a brand risk, a watch item) is an extra, at most two.
+- The digest (Brian's Highlights) is the read of the window, at most 45 words, then two to four insights,
+  most important first, fewer if little happened. A quiet day is one sentence.
