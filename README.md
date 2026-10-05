@@ -13,6 +13,8 @@ cp .env.example .env        # then fill in the keys you have; sources with no ke
 .venv/bin/uvicorn app.main:app --reload --port 8765    # http://localhost:8765
 ```
 
+The `martin-monitor-dev` preview config in `.claude/launch.json` sets `ADMIN_TOKEN=dev` (local only) so the Run now button works on your laptop.
+
 `python -m app.run all` runs every enabled source once. With the server running, the scheduler does the same on each source's cadence (set `SCHEDULER=0` to serve without polling).
 
 ## Sources
@@ -35,10 +37,26 @@ Cadences, handles, boards, terms and the topic keyword lists live in `sources.ya
 
 Four tabs, all on the CTM dashboard's tokens and Figtree:
 
-- **Signals**: the last 24 hours in numbers, search, filters by source and CTM category, and the feed. Every card has a primary "Open on X / Read on MSE" button, an expand button when the text is long, and a **Brian's View** box (a placeholder until the Anthropic key is connected). Martin's posts show a "Picked up" chain when MSE or the press ran the same topic within 48 hours. The right-hand panel is Brian's Insights.
+- **Signals**: the last 24 hours in numbers, search, filters by source and CTM category, and the feed. Every card has a **Martometer** (relevance to CTM out of 10, with Martin's head as the slider; see below), a primary "Open on X / Read on MSE" button, an expand button when the text is long, and a **Brian's View** box (a placeholder until the Anthropic key is connected). Items under the Martometer line are hidden until the **Show low relevance** switch is on; a note above the feed says how many. Martin's posts show a "Picked up" chain when MSE or the press ran the same topic within 48 hours. The right-hand panel is Brian's Insights.
 - **Demand**: Google Trends for 15 queries, at least one per CTM sub-brand, weekly over 12 months or daily over 30 days, with a dot wherever Martin posted on that topic. Hover for values; a table view sits underneath.
 - **Spread**: press pickup by publisher and per day, forum boards with active threads, Reddit and YouTube, last seven days.
-- **Sources**: cadence, last run, next run, stored counts, the category keyword lists, and recent runs.
+- **Sources**: cadence, last run, next run, stored counts, a Run button per source, the category keyword lists, how the Martometer is worked out (with worked examples), and recent runs.
+
+The top bar has a **Run now** button: it asks for the admin token once per tab, runs every enabled source in the background with Brian last, shows progress, and reloads the page when done.
+
+## The Martometer
+
+Every item gets a relevance score out of 10, computed when it is read (never stored), in `app/relevance.py`:
+
+```
+Martometer = 10 × Martin × CTM
+Martin     = voice × (0.7 + 0.3 × reach)      who is speaking, nudged by how far it travelled
+CTM        = Brian's call if he has read it, else the keyword categories
+```
+
+Voice: Martin's own channels 1.0, MSE's official output 0.85, a press story about him 0.7, a forum or Reddit thread that names Martin or MSE 0.75, any other forum thread 0.25, any other Reddit post 0.15. Reach is 0 to 1 on a log scale of the engagement we hold against a full-reach reference per source (X one million impressions, Instagram one million plays, YouTube 500k views, forum 100 comments, Reddit 1,000 points plus comments); sources with no engagement data take the midpoint. CTM: Brian's relevance none 0.05, low 0.35, medium 0.7, high 1.0; otherwise no keyword category 0.1, one 0.6, two or more 0.75.
+
+It is a product on purpose: a Martin post about pensions and a forum thread about broadband that never mentions him both score low. On the 1 October database it keeps 4 of 300 forum threads, 22 of 104 press stories and 0 of 5 Reddit posts above the line (3.0), while every one of Martin's posts on a CTM topic stays. All the numbers are in `sources.yaml` under `martometer`, and the Sources tab renders the formula from the same block. `GET /api/feed?hide_low=1` applies the line and returns `hidden`; `min_score=` sets your own.
 
 We store the full text of everything: whole tweets (including X's long posts via `note_tweet`), Instagram captions, MSE articles up to 30k characters, forum and Reddit posts up to 10k, YouTube descriptions. Press items are headline plus link only. Categories are the 14 CTM sub-brands from the CTM dashboard (Car, Home, Pet, Life, Travel, Health, Business, Energy, Broadband, Phones, Credit cards, Current accounts, Mortgages, Loans), matched as whole words with plurals on the keyword lists in `sources.yaml` (shown on the Sources tab). Brian's View gives his own corrected categories. Changing the lists and bumping `TOPICS_VERSION` in `app/sources/base.py` retags everything once at start-up.
 
@@ -48,7 +66,7 @@ Source glyphs are original marks, not the platforms' logos. To use official bran
 
 Brian is Claude Opus 5.5 with a persona and a context file (`app/brian/context.md`, a draft of what he knows about Compare the Market: correct it before the pitch). He never runs on page load.
 
-- **Brian's View** is written once per item, by the scheduled `brian` job (hourly, only when there is something new), for Martin's and MSE's own posts, loud forum and Reddit threads and press stories on a CTM topic. Everything else gets an **Ask Brian about this** button that writes the view on request and stores it. Views are structured: relevance, summary, impact by product line, actions, corrected categories, confidence.
+- **Brian's View** is written once per item, by the scheduled `brian` job (hourly, only when there is something new), for Martin's and MSE's own posts, loud forum and Reddit threads and press stories on a CTM topic. Everything else gets an **Ask Brian about this** button that writes the view on request and stores it. Views are structured and the page shows them in two parts: **Impact on CTM** (product line, direction, magnitude, timing: what the signal does to CTM's demand) and **What CTM could do** (up to three actions, each tagged with the lever it pulls: bids, budgets, creative, content, pr or watch). Plus relevance, corrected categories and confidence. A view also re-scores the item's Martometer.
 - **Brian's Insights** and the hero's read of the day come from an hourly digest over the last 24 hours, grounded in stored items (each insight carries evidence ids) and the Trends, forum and press numbers.
 - **Ask Brian** streams a live answer grounded in the latest read, insights and recent items. Public endpoint, so it is rate-limited per caller (20 an hour) and capped at 500 characters.
 - Spend shows on the Sources tab. Six views plus a digest cost about 10 cents in testing; the stable system prompt is cached, so most input tokens are cheap cache reads. Set a monthly limit in the Anthropic console as the backstop.
@@ -58,10 +76,14 @@ Needs `ANTHROPIC_API_KEY` in Railway's Variables. Force a digest with `POST /api
 
 ## Admin actions (production)
 
-With `ADMIN_TOKEN` set in Railway's Variables, two endpoints accept `X-Admin-Token`:
+With `ADMIN_TOKEN` set in Railway's Variables, these endpoints accept `X-Admin-Token` (the page's Run now button uses the first):
 
 ```bash
-# run one source now (any key from the Sources table)
+# run every enabled source in the background, Brian last; follow GET /api/run/status (public, read-only)
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<domain>/api/run/all
+curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" "https://<domain>/api/run/all?sources=press,mse_forum"
+
+# run one source now and wait for it (any key from the Sources table)
 curl -X POST -H "X-Admin-Token: $ADMIN_TOKEN" https://<domain>/api/run/trends
 
 # pull history: X per handle (about $0.005 a tweet fetched), Instagram (one Ensemble unit per ten posts)
@@ -80,7 +102,8 @@ X engagement is re-read at 1, 6 and 24 hours after each tweet (about 1.5p a twee
 ## Layout
 
 ```
-app/main.py          FastAPI: /health, /api/summary, /api/feed, /api/items/{id}, /api/trends, /api/runs, POST /api/run/{source}
+app/main.py          FastAPI: /health, /api/summary, /api/feed, /api/items/{id}, /api/trends, /api/runs, POST /api/run/all, /api/run/status
+app/relevance.py     the Martometer: relevance to CTM out of 10, from sources.yaml's martometer block
 app/scheduler.py     APScheduler in-process; one job per source
 app/db.py            SQLite schema and helpers (items, metric_snapshots, trends, insights, runs, state)
 app/sources/*.py     one module per source, each exposing fetch(con, cfg) -> list[Item] (x and instagram also expose backfill)

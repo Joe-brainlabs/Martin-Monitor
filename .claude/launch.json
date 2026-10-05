@@ -15,7 +15,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "SCHEDULER=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port ${PORT:-8767}"
+        "SCHEDULER=0 ADMIN_TOKEN=${ADMIN_TOKEN:-dev} .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port ${PORT:-8767}"
       ],
       "port": 8767,
       "autoPort": true

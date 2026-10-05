@@ -26,6 +26,7 @@
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></symbol>
     </defs>
   </svg>
 
@@ -44,6 +45,7 @@
       <button class="tab" role="tab" data-tab="sources">Sources</button>
     </nav>
     <div class="topbar__right">
+      <button class="btn btn--run" id="run-now" title="Run every source now and let Brian read what arrives. Needs the admin token."><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>Run now</button>
       <div class="live" id="live"><span class="dot"></span><span id="live-text">Connecting…</span></div>
       <img class="client-logo" src="ctm-logo.webp" alt="Compare the Market">
     </div>
@@ -53,7 +55,10 @@
     <section id="panel-signals" class="panel" role="tabpanel">
       <div class="hero" id="hero"></div>
       <div class="toolbar">
-        <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search everything (e.g. price cap, Ofgem, renewal)" autocomplete="off"></label>
+        <div class="toolbar__row">
+          <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search everything (e.g. price cap, Ofgem, renewal)" autocomplete="off"></label>
+          <label class="switch" title="Items under the Martometer line are hidden by default. Switch on to see everything."><input type="checkbox" id="show-low"><span class="switch__track"></span><span>Show low relevance</span></label>
+        </div>
         <div class="filters" id="source-filters" aria-label="Filter by source"></div>
         <div class="filters filters--topics" id="topic-filters" aria-label="Filter by CTM category"></div>
       </div>
@@ -86,7 +91,7 @@
     </section>
 
     <section id="panel-sources" class="panel" role="tabpanel" hidden>
-      <div class="panel__head"><div><h2>Sources and cadence</h2><p class="lede">Every source, how often it runs, when it last ran and when it runs next. Times are your local time.</p></div></div>
+      <div class="panel__head"><div><h2>Sources and cadence</h2><p class="lede">Every source, how often it runs, when it last ran and when it runs next. Times are your local time. The Run buttons need the admin token.</p></div></div>
       <div id="sources"></div>
     </section>
   </main>

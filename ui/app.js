@@ -21,6 +21,7 @@ const state = {
   summary: null, feed: [], insights: null, spread: null, runs: [],
   trends: {}, resolution: "weekly", martinPosts: null, showTable: false,
   expanded: new Set(), brianToggled: new Set(),
+  showLow: false, hidden: 0, hideBelow: 3, run: null, scrollTo: null,
 };
 
 // ---------- helpers ----------
@@ -97,10 +98,12 @@ async function loadSignals() {
   if (state.source) params.set("source", state.source);
   if (state.topic) params.set("topic", state.topic);
   if (state.q) params.set("q", state.q);
+  if (!state.showLow) params.set("hide_low", "1");
   const [summary, feed, insights, spread] = await Promise.all([
     getJSON("/api/summary"), getJSON(`/api/feed?${params}`), getJSON("/api/insights"), getJSON("/api/spread"),
   ]);
   state.summary = summary; state.feed = feed.items; state.insights = insights; state.spread = spread;
+  state.hidden = feed.hidden || 0; state.hideBelow = feed.hide_below ?? state.hideBelow;
   renderLive(); renderHero(); renderFilters(); renderFeed(); renderBrianPanel();
 }
 
@@ -196,6 +199,43 @@ function metricsFor(item) {
   return parts.filter(Boolean);
 }
 
+// Brian's actions arrive as {lever, text} (older stored views have plain strings; both render).
+function actionList(actions) {
+  const ul = el("ul", "brian-view__actions");
+  for (const a of actions) {
+    const li = el("li");
+    if (a && typeof a === "object" && a.lever) { const tag = el("span", `lever lever--${a.lever}`, a.lever); tag.title = LEVERS[a.lever] || ""; li.append(tag); }
+    li.append(document.createTextNode(typeof a === "string" ? a : a.text || JSON.stringify(a)));
+    ul.append(li);
+  }
+  return ul;
+}
+const LEVERS = { bids: "Paid search bids or query coverage", budgets: "Move spend between product lines", creative: "Ad copy, social or display creative that echoes the advice", content: "Landing pages, guides, SEO", pr: "Get named, respond, partner", watch: "Monitor, no spend yet" };
+function impactList(impact) {
+  const wrap = el("div", "brian-view__impacts");
+  for (const i of impact) wrap.append(el("span", "impact", [nice(i.product), i.direction === "up" ? "▲ up" : i.direction === "down" ? "▼ down" : i.direction, i.magnitude, i.timing].filter(Boolean).join(" · ")));
+  return wrap;
+}
+
+// The Martometer: relevance to CTM out of 10, Martin's head as the slider thumb. Scored on the server (app/relevance.py).
+function martometer(item) {
+  const m = item.martometer;
+  if (!m) return null;
+  const pct = Math.max(0, Math.min(100, m.score * 10));
+  const box = el("div", "martometer");
+  box.setAttribute("role", "meter"); box.setAttribute("aria-valuemin", "0"); box.setAttribute("aria-valuemax", "10"); box.setAttribute("aria-valuenow", String(m.score));
+  box.setAttribute("aria-label", `Martometer ${m.score.toFixed(1)} out of 10`);
+  box.title = `Martometer ${m.score.toFixed(1)} = 10 × Martin ${m.martin} (${m.who}${m.reach != null ? `, ${m.seen}` : ""}) × CTM ${m.ctm} (${m.why}). Click the label for how it works.`;
+  const lab = el("button", "martometer__label", "Martometer");
+  lab.onclick = (e) => { e.stopPropagation(); state.scrollTo = "martometer-explainer"; setTab("sources"); };
+  const track = el("span", "martometer__track");
+  const fill = el("span", "martometer__fill"); fill.style.width = `${pct}%`;
+  const thumb = el("img", "martometer__thumb"); thumb.src = "logo.png"; thumb.alt = ""; thumb.style.left = `${pct}%`;
+  track.append(fill, thumb);
+  box.append(lab, track, el("b", "martometer__num", m.score.toFixed(1)));
+  return box;
+}
+
 function brianView(item) {
   const box = el("div", "brian-view" + (item.brian ? " has-view" : ""));
   const head = el("div", "brian-view__head");
@@ -209,16 +249,8 @@ function brianView(item) {
   }
   if (b.relevance === "none") { box.classList.remove("has-view"); box.classList.add("is-none"); box.append(el("p", "brian-view__text", `Not one for CTM. ${b.summary || ""}`)); return box; }
   box.append(el("p", "brian-view__text", b.summary || b.headline || ""));
-  if (Array.isArray(b.impact) && b.impact.length) {
-    const wrap = el("div", "brian-view__impacts");
-    for (const i of b.impact) wrap.append(el("span", "impact", [nice(i.product), i.direction, i.magnitude, i.timing].filter(Boolean).join(" · ")));
-    box.append(wrap);
-  }
-  if (Array.isArray(b.actions) && b.actions.length) {
-    const ul = el("ul", "brian-view__actions");
-    for (const a of b.actions) ul.append(el("li", null, typeof a === "string" ? a : a.text || JSON.stringify(a)));
-    box.append(ul);
-  }
+  if (Array.isArray(b.impact) && b.impact.length) box.append(el("div", "brian-view__section", "Impact on CTM"), impactList(b.impact));
+  if (Array.isArray(b.actions) && b.actions.length) box.append(el("div", "brian-view__section", "What CTM could do"), actionList(b.actions));
   if (b.confidence) box.append(el("div", "brian-view__conf", `Confidence ${b.confidence}${b.relevance ? ` · relevance ${b.relevance}` : ""}${b.created_at ? ` · ${ago(b.created_at)}` : ""}`));
   return box;
 }
@@ -239,7 +271,7 @@ async function askBrianAbout(item, card) {
 
 function renderItem(item) {
   const meta = SOURCE_META[item.source] || { glyph: "press", open: "Open the source" };
-  const card = el("article", "card item");
+  const card = el("article", "card item" + (item.martometer && item.martometer.low ? " is-low" : ""));
   card.dataset.id = item.id;
 
   const head = el("div", "item__head");
@@ -259,6 +291,8 @@ function renderItem(item) {
   when.textContent = (bumped ? "active " : "") + ago(item.activity_at || item.published_at || item.first_seen_at);
   when.title = fmtWhen(item.activity_at || item.published_at || item.first_seen_at);
   if (item.url) { when.href = item.url; when.target = "_blank"; when.rel = "noopener"; }
+  const gauge = martometer(item);
+  if (gauge) head.append(gauge);
   head.append(when);
   card.append(head);
 
@@ -340,9 +374,22 @@ function renderItem(item) {
 function renderFeed() {
   const feed = document.getElementById("feed");
   feed.replaceChildren();
-  if (!state.feed.length) { feed.append(el("div", "empty", "Nothing matches. Try another source, category or search.")); return; }
+  const hidden = state.hidden, lowShown = state.feed.filter((i) => i.martometer && i.martometer.low).length;
+  if ((!state.showLow && hidden) || (state.showLow && lowShown)) {
+    const note = el("div", "feed-note");
+    note.append(document.createTextNode(state.showLow
+      ? `Showing everything, including ${lowShown} low-relevance ${lowShown === 1 ? "item" : "items"} (Martometer under ${state.hideBelow}).`
+      : `${hidden} low-relevance ${hidden === 1 ? "item" : "items"} hidden (Martometer under ${state.hideBelow}).`));
+    const link = el("button", "link", state.showLow ? "Hide them" : "Show them");
+    link.onclick = () => setShowLow(!state.showLow);
+    note.append(link);
+    feed.append(note);
+  }
+  if (!state.feed.length) { feed.append(el("div", "empty", hidden ? "Nothing above the relevance line here. Switch on \"Show low relevance\" to see the rest." : "Nothing matches. Try another source, category or search.")); return; }
   for (const item of state.feed) feed.append(renderItem(item));
 }
+function setShowLow(on) { state.showLow = on; document.getElementById("show-low").checked = on; loadSignals(); }
+document.getElementById("show-low").onchange = (e) => setShowLow(e.target.checked);
 
 function renderBrianPanel() {
   const panel = document.getElementById("brian-panel");
@@ -369,12 +416,8 @@ function renderBrianPanel() {
     const card = el("div", "card insight");
     card.append(el("div", "insight__head", ins.headline || ""), el("div", "insight__meta", `${ago(ins.created_at)}${ins.confidence ? ` · confidence ${ins.confidence}` : ""}`));
     if (ins.body) card.append(el("p", null, ins.body));
-    if (Array.isArray(ins.impact) && ins.impact.length) {
-      const wrap = el("div", "brian-view__impacts");
-      for (const i of ins.impact) wrap.append(el("span", "impact", [nice(i.product), i.direction === "up" ? "▲" : i.direction === "down" ? "▼" : i.direction, i.magnitude, i.timing].filter(Boolean).join(" · ")));
-      card.append(wrap);
-    }
-    if (Array.isArray(ins.actions) && ins.actions.length) { const ul = el("ul", "brian-view__actions"); for (const a of ins.actions) ul.append(el("li", null, a)); card.append(ul); }
+    if (Array.isArray(ins.impact) && ins.impact.length) card.append(el("div", "brian-view__section", "Impact on CTM"), impactList(ins.impact));
+    if (Array.isArray(ins.actions) && ins.actions.length) card.append(el("div", "brian-view__section", "What CTM could do"), actionList(ins.actions));
     if (Array.isArray(ins.evidence) && ins.evidence.length) {
       const ev = el("div", "insight__evidence"); ev.append(document.createTextNode("Evidence: "));
       ins.evidence.slice(0, 5).forEach((id, i) => { if (i) ev.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; ev.append(a); });
@@ -619,8 +662,9 @@ function renderSources() {
   root.replaceChildren();
   const table = el("table", "data");
   const head = el("tr");
-  for (const h of ["Source", "Cadence", "Last run", "Result", "Next run", "Stored", "Notes"]) head.append(el("th", null, h));
+  for (const h of ["Source", "Cadence", "Last run", "Result", "Next run", "Stored", "Notes", "Run"]) head.append(el("th", null, h));
   table.append(head);
+  const running = state.run && state.run.running;
   for (const s of state.summary.sources) {
     const row = el("tr");
     const src = el("td"); const wrap = el("span", "src"); wrap.append(icon((SOURCE_META[s.source] || {}).glyph || "press", "ico ico--lg"), document.createTextNode(s.label)); src.append(wrap); row.append(src);
@@ -634,6 +678,14 @@ function renderSources() {
     row.append(el("td", null, s.next_run ? `${fmtWhen(s.next_run)} (${until(s.next_run)})` : s.enabled ? "scheduler off" : ""));
     row.append(el("td", "num", s.total != null ? num(s.total) : ""));
     row.append(el("td", "err", !s.enabled ? s.reason : s.last_run && !s.last_run.ok ? s.last_run.error : ""));
+    const runCell = el("td");
+    if (s.enabled) {
+      const b = el("button", "btn btn--row-run", running && state.run.current === s.source ? "Running…" : "Run");
+      b.disabled = !!running; b.title = `Run ${s.label} now (admin token)`;
+      b.onclick = () => runNow([s.source]);
+      runCell.append(b);
+    }
+    row.append(runCell);
     table.append(row);
   }
   root.append(table);
@@ -653,6 +705,7 @@ function renderSources() {
   for (const [t, phrases] of Object.entries(state.summary.topic_defs)) { const r = el("tr"); r.append(el("td", null, nice(t)), el("td", null, phrases.join(", "))); tt.append(r); }
   topics.append(tt);
   root.append(topics);
+  renderMartometerExplainer(root);
 
   const runs = el("div", "section");
   runs.append(el("h3", "section-title", "Recent runs"));
@@ -668,6 +721,120 @@ function renderSources() {
   runs.append(rt);
   root.append(runs);
 }
+
+function renderMartometerExplainer(root) {
+  const x = state.summary.martometer;
+  if (!x) return;
+  const voice = x.voice || {}, refs = x.reach_refs || {}, floor = x.reach_floor ?? 0.7, brian = x.ctm_brian || {}, kw = x.ctm_keywords || {};
+  const sec = el("div", "section"); sec.id = "martometer-explainer";
+  sec.append(el("h3", "section-title", "How the Martometer works"));
+  sec.append(el("p", "lede", `Every card carries a Martometer: how relevant that item is to Compare the Market's business, out of 10. It is a multiple of two factors, how much the item has to do with Martin and how much it has to do with CTM, so a Martin post about pensions and a forum thread about broadband that never mentions him both score low: each is missing one half. The feed hides anything under ${x.hide_below} unless "Show low relevance" is switched on.`));
+  sec.append(el("pre", "formula", `Martometer = 10 × Martin × CTM\nMartin     = voice × (${floor} + ${(1 - floor).toFixed(1)} × reach)        who is speaking, nudged by how far it travelled\nCTM        = Brian's call if he has read it, else keywords   is it CTM's business?`));
+
+  const grid = el("div", "spread-grid");
+  const mcard = el("div", "card");
+  mcard.append(el("h3", "section-title", "Martin factor: who is speaking (voice, 0 to 1)"));
+  const vt = el("table", "data"); const vh = el("tr"); vh.append(el("th", null, "Who"), el("th", "num", "Voice")); vt.append(vh);
+  for (const [text, v] of [
+    ["Martin's own channels: X, Instagram, YouTube", voice.martin], ["MSE's official output: MSE on X, MSE news, guide changes", voice.mse],
+    ["A national press story about him", voice.press], ["A forum or Reddit thread that names Martin or MSE", voice.names_martin],
+    ["Any other MSE forum thread", voice.forum], ["Any other Reddit post", voice.reddit],
+  ]) { const r = el("tr"); r.append(el("td", null, text), el("td", "num", String(v))); vt.append(r); }
+  mcard.append(vt);
+  mcard.append(el("p", "lede small", `Reach runs from 0 to 1 on a log scale of the engagement we hold, against what counts as a full-reach day for each source: X ${num(refs.x)} impressions, Instagram ${num(refs.instagram)} plays, YouTube ${num(refs.youtube)} views, MSE forum ${num(refs.mse_forum)} comments, Reddit ${num(refs.reddit)} points and comments. A post nobody has seen keeps ${Math.round(floor * 100)}% of its voice score, so reach nudges rather than decides. Press, MSE news and guide changes carry no engagement numbers and take the midpoint.`));
+  grid.append(mcard);
+
+  const ccard = el("div", "card");
+  ccard.append(el("h3", "section-title", "CTM factor: is it CTM's business? (0 to 1)"));
+  const ct = el("table", "data"); const ch = el("tr"); ch.append(el("th", null, "Evidence"), el("th", "num", "CTM")); ct.append(ch);
+  for (const [text, v] of [
+    ["Brian has read it and says relevance high", brian.high], ["Brian says medium", brian.medium], ["Brian says low", brian.low], ["Brian says none: not one for CTM", brian.none],
+    ["Not read yet: two or more CTM categories matched by keyword", kw["2"]], ["Not read yet: one category matched", kw["1"]], ["Not read yet: no category matched", kw["0"]],
+  ]) { const r = el("tr"); r.append(el("td", null, text), el("td", "num", String(v))); ct.append(r); }
+  ccard.append(ct);
+  ccard.append(el("p", "lede small", "Brian's call wins once he has read the item, because the keyword tags are only a first pass: a Reddit thread about a utility on someone's credit file matches Credit cards, and Brian will say it is not one for CTM. Asking Brian about an item therefore re-scores it."));
+  grid.append(ccard);
+  sec.append(grid);
+
+  // Worked examples, computed here with the same formula and constants so they can never drift from the real scores.
+  const reach = (n, ref) => Math.min(1, Math.log10(1 + n) / Math.log10(1 + ref));
+  const martin = (v, r) => v * (floor + (1 - floor) * (r == null ? 0.5 : r));
+  const ex = el("div", "card");
+  ex.append(el("h3", "section-title", "Worked examples (made with the numbers above)"));
+  const et = el("table", "data"); const eh = el("tr");
+  for (const h of ["Item", "Martin", "CTM", "Martometer", "In the feed by default?"]) eh.append(el("th", h === "Item" || h.startsWith("In") ? null : "num", h)); et.append(eh);
+  for (const [text, m, c] of [
+    ["Martin's Instagram video on the January energy cap forecast, 200k plays, Brian: high", martin(voice.martin, reach(200000, refs.instagram)), brian.high],
+    ["Martin on X about mortgage deals ending, 170k impressions, not read yet, keyword Mortgages", martin(voice.martin, reach(170000, refs.x)), kw["1"]],
+    ["Martin on X about the State Pension triple lock, 300k impressions, Brian: none", martin(voice.martin, reach(300000, refs.x)), brian.none],
+    ["A regional paper on Martin's six-month mortgage rule, keyword Mortgages", martin(voice.press, null), kw["1"]],
+    ["An MSE forum thread on the Energy board quoting Martin, 6 comments, keyword Energy", martin(voice.names_martin, reach(6, refs.mse_forum)), kw["1"]],
+    ["An MSE forum thread about moving from BT to Sky, 4 comments, Martin not named, keyword Broadband", martin(voice.forum, reach(4, refs.mse_forum)), kw["1"]],
+    ["A Reddit post about a utility on a credit file, 27 points and comments, Martin not named, Brian: none", martin(voice.reddit, reach(27, refs.reddit)), brian.none],
+  ]) {
+    const s = Math.round(10 * m * c * 10) / 10;
+    const r = el("tr");
+    r.append(el("td", null, text), el("td", "num", m.toFixed(2)), el("td", "num", String(c)), el("td", "num", s.toFixed(1)), el("td", s >= x.hide_below ? "shown-yes" : "shown-no", s >= x.hide_below ? "Yes" : "Hidden"));
+    et.append(r);
+  }
+  ex.append(et);
+  sec.append(ex);
+  sec.append(el("p", "lede small", "The numbers live in sources.yaml under martometer; this page reads them from there, and scores are worked out when items are read, so a change shows at once."));
+  root.append(sec);
+  if (state.scrollTo === "martometer-explainer") { state.scrollTo = null; requestAnimationFrame(() => sec.scrollIntoView({ behavior: "smooth", block: "start" })); }
+}
+
+// ---------- run now ----------
+// The button posts to /api/run/all with the admin token (typed once, kept for this tab only) and follows
+// /api/run/status until the queue is done. The token check is on the server; the page never spends on its own.
+const TOKEN_KEY = "mm_admin_token";
+function adminToken() {
+  let t = sessionStorage.getItem(TOKEN_KEY);
+  if (!t) {
+    t = window.prompt("Admin token (the server's ADMIN_TOKEN). Kept in this tab only.");
+    if (!t || !t.trim()) return null;
+    sessionStorage.setItem(TOKEN_KEY, t.trim());
+  }
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+async function runNow(sources) {
+  const token = adminToken();
+  if (!token) return;
+  const query = sources && sources.length ? `?sources=${encodeURIComponent(sources.join(","))}` : "";
+  let r;
+  try { r = await fetch(`/api/run/all${query}`, { method: "POST", headers: { "X-Admin-Token": token } }); }
+  catch (err) { alert(`Could not reach the API: ${err.message}`); return; }
+  if (r.status === 401) { sessionStorage.removeItem(TOKEN_KEY); alert("That admin token was not accepted. Click Run now to try again."); return; }
+  if (r.status === 409) { pollRun(); return; }  // already running: just follow it
+  if (!r.ok) { let detail = r.statusText; try { detail = (await r.json()).detail || detail; } catch (_) {} alert(`Could not start the run: ${detail}`); return; }
+  state.run = await r.json();
+  renderRun();
+  pollRun();
+}
+let runTimer = null;
+async function pollRun() {
+  clearTimeout(runTimer);
+  let status;
+  try { status = await getJSON("/api/run/status"); } catch (_) { return; }
+  const wasRunning = state.run && state.run.running;
+  state.run = status;
+  renderRun();
+  if (status.running) runTimer = setTimeout(pollRun, 2000);
+  else if (wasRunning) {
+    await loadTab(state.tab);
+    const fresh = status.done.reduce((a, d) => a + (d.new || 0), 0), failed = status.done.filter((d) => !d.ok).length;
+    document.getElementById("live-text").textContent = `Ran ${status.done.length} ${status.done.length === 1 ? "source" : "sources"}: ${fresh} new${failed ? `, ${failed} failed (see Sources)` : ""}`;
+  }
+}
+function renderRun() {
+  const btn = document.getElementById("run-now"), r = state.run, running = !!(r && r.running);
+  const name = (s) => ((state.summary && state.summary.sources) || []).find((x) => x.source === s)?.label || s;
+  btn.classList.toggle("is-running", running);
+  btn.disabled = running;
+  btn.replaceChildren(icon("play", "ico"), document.createTextNode(running ? `Running ${name(r.current)}… (${r.done.length + 1} of ${r.done.length + 1 + r.queue.length})` : "Run now"));
+  if (state.tab === "sources" && state.summary) renderSources();
+}
+document.getElementById("run-now").onclick = () => runNow();
 
 // ---------- boot ----------
 async function loadTab(name) {
@@ -688,4 +855,5 @@ document.getElementById("search").addEventListener("input", (e) => {
   searchTimer = setTimeout(() => { state.q = e.target.value.trim(); loadSignals(); }, 300);
 });
 setTab(["signals", "demand", "spread", "sources"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "signals");
+pollRun();  // pick up a run started from another tab
 setInterval(() => { if (state.tab === "signals") loadSignals(); }, 60000);

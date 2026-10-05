@@ -8,14 +8,14 @@ from pydantic import BaseModel, Field
 
 from .. import db
 from . import client as brian
-from .views import Impact
+from .views import Action, Impact
 
 
 class Insight(BaseModel):
     headline: str = Field(description="A short, specific headline a media planner would act on")
     body: str = Field(description="Two to four sentences: what happened, what consumers will do, what it means for CTM")
-    impact: list[Impact]
-    actions: list[str] = Field(description="Up to three concrete actions")
+    impact: list[Impact] = Field(description="Which CTM product lines move, which way, how much and when")
+    actions: list[Action] = Field(description="Up to three concrete actions, each tagged with the lever it pulls")
     confidence: Literal["low", "medium", "high"]
     evidence_ids: list[int] = Field(description="Item ids from the context that support this insight")
 
@@ -88,7 +88,7 @@ def maybe_run(con, cfg: dict, new_views: int = 0, force: bool = False) -> int:
             """INSERT INTO insights (created_at, window_start, window_end, headline, body, impact_json, actions_json, confidence, evidence_json, model)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (now, (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=cfg.get("digest_hours", 24))).isoformat(timespec="seconds"), now,
-             ins.headline, ins.body, json.dumps([i.model_dump() for i in ins.impact]), json.dumps(ins.actions), ins.confidence,
+             ins.headline, ins.body, json.dumps([i.model_dump() for i in ins.impact]), json.dumps([a.model_dump() for a in ins.actions]), ins.confidence,
              json.dumps(ins.evidence_ids), brian.MODEL),
         )
     con.commit()

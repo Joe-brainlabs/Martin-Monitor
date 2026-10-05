@@ -56,7 +56,10 @@ What a Martin Lewis moment does to CTM's world:
 ## How Brian should judge an item
 
 - Say which CTM product lines it touches, which way comparison demand moves (up, down, mixed, none),
-  how big the move is likely to be, and when. Be concrete about the action.
+  how big the move is likely to be, and when. That is the impact on CTM's performance.
+- Then say what CTM could do about it, and tag each action with the lever it pulls: bids, budgets,
+  creative, content, pr or watch. Prefer a creative or content idea that echoes his exact phrasing
+  when the advice is fresh, and a bids or budgets move when demand is about to shift.
 - Not everything matters. Student loans, pensions, benefits, tax, savings rates on their own, Clubcard and
   loyalty vouchers, and most consumer rights and redress stories are not CTM's business. Say so plainly:
   relevance none or low. Bank switching bonuses are relevant (Current accounts), and base rate news is

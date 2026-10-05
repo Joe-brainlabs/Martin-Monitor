@@ -23,11 +23,20 @@ class Impact(BaseModel):
     timing: str = Field(description="When it bites, in words, e.g. 'next 24 to 72 hours'")
 
 
+class Action(BaseModel):
+    lever: Literal["bids", "budgets", "creative", "content", "pr", "watch"] = Field(
+        description="The lever CTM pulls: bids (paid search bids or query coverage), budgets (move spend between product lines), "
+        "creative (ad copy, social or display creative that echoes the advice), content (landing pages, guides, SEO), "
+        "pr (get named, respond, partner), watch (monitor, no spend yet)"
+    )
+    text: str = Field(description="The action in one plain sentence")
+
+
 class View(BaseModel):
     relevance: Literal["none", "low", "medium", "high"] = Field(description="How much this matters to Compare the Market")
     summary: str = Field(description="One or two plain sentences: what this means for CTM. If relevance is none, say why in one sentence.")
-    impact: list[Impact] = Field(description="Empty when relevance is none")
-    actions: list[str] = Field(description="Up to three concrete actions for CTM's media team. Empty when there is nothing to do.")
+    impact: list[Impact] = Field(description="Which CTM product lines move, which way, how much and when. Empty when relevance is none")
+    actions: list[Action] = Field(description="Up to three concrete actions for CTM's media team, each tagged with the lever it pulls. Empty when there is nothing to do.")
     topics: list[Topic] = Field(description="The CTM categories this item is really about (corrects the keyword tags)")
     confidence: Literal["low", "medium", "high"]
 

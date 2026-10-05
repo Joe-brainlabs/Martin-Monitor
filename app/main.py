@@ -3,6 +3,7 @@
 import datetime as dt
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from . import db
+from . import db, relevance
 from .config import SOURCES, UI_DIR, env
 from .brian import ask as brian_ask
 from .brian import client as brian
@@ -165,6 +166,7 @@ def summary():
             "topic_defs": SOURCES["topics"],
             "topic_labels": SOURCES.get("topic_labels", {}),
             "trend_terms": [t if isinstance(t, dict) else {"term": t, "topic": None} for t in SOURCES["trends"]["terms"]],
+            "martometer": relevance.explain(),
         }
     finally:
         con.close()
@@ -177,7 +179,12 @@ def feed(
     topic: str | None = None,
     since: str | None = None,
     q: str | None = None,
+    hide_low: bool = False,
+    min_score: float | None = Query(None, ge=0, le=10),
 ):
+    """The feed, newest activity first. Every item carries its Martometer (see app/relevance.py). With hide_low,
+    items under the line in sources.yaml are left out and counted in `hidden`; min_score sets your own line."""
+    threshold = min_score if min_score is not None else (relevance.HIDE_BELOW if hide_low else None)
     clauses, params = [], []
     if source:
         clauses.append("source = ?"); params.append(source)
@@ -195,11 +202,17 @@ def feed(
                        metrics_json, topics_json, brian_json, {ACTIVITY} AS activity_at
                 FROM items {where}
                 ORDER BY activity_at DESC LIMIT ?""",
-            (*params, limit),
+            (*params, 500 if threshold is not None else limit),  # score a wider window, then cut to the limit
         ).fetchall()
         items = [db.row_to_item(r) for r in rows]
         attach_chains(con, items)
-        return {"labels": labels(), "items": items}
+        relevance.attach(items)
+        hidden = 0
+        if threshold is not None:
+            kept = [i for i in items if i["martometer"]["score"] >= threshold]
+            hidden = len(items) - len(kept)
+            items = kept[:limit]
+        return {"labels": labels(), "items": items, "hidden": hidden, "hide_below": relevance.HIDE_BELOW}
     finally:
         con.close()
 
@@ -215,6 +228,7 @@ def item(item_id: int):
             "SELECT captured_at, metrics_json FROM metric_snapshots WHERE item_id = ? ORDER BY captured_at", (item_id,)
         ).fetchall()
         out = db.row_to_item(row)
+        out["martometer"] = relevance.score(out)
         out["snapshots"] = [{"captured_at": s["captured_at"], "metrics": db.json.loads(s["metrics_json"])} for s in snapshots]
         return out
     finally:
@@ -322,9 +336,57 @@ def runs(limit: int = Query(50, ge=1, le=500)):
         con.close()
 
 
+# "Run now": one background queue, one run at a time. The page's button posts to /api/run/all and follows
+# /api/run/status. The sources run in registry order with Brian last, so he reads whatever just arrived.
+_RUN: dict = {"running": False, "started_at": None, "finished_at": None, "current": None, "queue": [], "done": []}
+_RUN_LOCK = threading.Lock()
+
+
+def _run_queue() -> None:
+    while True:
+        with _RUN_LOCK:
+            if not _RUN["queue"]:
+                _RUN.update(running=False, current=None, finished_at=db.utcnow())
+                return
+            _RUN["current"] = _RUN["queue"].pop(0)
+            name = _RUN["current"]
+        result = run_source(name)  # never raises; failures are recorded in the result and the runs table
+        with _RUN_LOCK:
+            _RUN["done"].append(result)
+
+
+@app.get("/api/run/status")
+def run_status():
+    """Progress of the current or last 'run now'. Read-only: source names, counts and error text."""
+    with _RUN_LOCK:
+        return {**_RUN, "queue": list(_RUN["queue"]), "done": list(_RUN["done"])}
+
+
+@app.post("/api/run/all", status_code=202)
+def run_all(sources: str | None = None, x_admin_token: str | None = Header(default=None)):
+    """Run every enabled source now, or the comma-separated `sources`, in the background. Returns at once;
+    follow /api/run/status. Admin token required, because X, Decodo, EnsembleData and Brian all cost money."""
+    _require_admin(x_admin_token)
+    wanted = [n.strip() for n in sources.split(",") if n.strip()] if sources else [n for n, s in REGISTRY.items() if s.enabled]
+    unknown = [n for n in wanted if n not in REGISTRY]
+    if unknown:
+        raise HTTPException(404, f"Unknown source: {', '.join(unknown)}. Known: {', '.join(REGISTRY)}")
+    disabled = [n for n in wanted if not REGISTRY[n].enabled]
+    if disabled:
+        raise HTTPException(400, f"{', '.join(disabled)} is off: {REGISTRY[disabled[0]].reason}")
+    names = [n for n in REGISTRY if n in set(wanted)]  # registry order, Brian last
+    with _RUN_LOCK:
+        if _RUN["running"]:
+            raise HTTPException(409, "A run is already in progress")
+        _RUN.update(running=True, started_at=db.utcnow(), finished_at=None, current=None, queue=names, done=[])
+    threading.Thread(target=_run_queue, name="run-now", daemon=True).start()
+    return run_status()
+
+
 @app.post("/api/run/{name}")
 def run_now(name: str, x_admin_token: str | None = Header(default=None)):
-    """Trigger one source immediately. Server-side token check; disabled unless ADMIN_TOKEN is set."""
+    """Trigger one source immediately and wait for it. Server-side token check; disabled unless ADMIN_TOKEN is set.
+    Long sources (Trends) can outlast a proxy timeout here; the page uses /api/run/all instead."""
     _require_admin(x_admin_token)
     if name not in REGISTRY:
         raise HTTPException(404, f"Unknown source. Known: {', '.join(REGISTRY)}")
