@@ -45,7 +45,7 @@
       <button class="tab" role="tab" data-tab="sources">Sources</button>
     </nav>
     <div class="topbar__right">
-      <button class="btn btn--run" id="run-now" title="Run every source now and let Brian read what arrives. Needs the admin token."><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>Run now</button>
+      <button class="btn btn--run" id="run-now" title="Run every source now and let Brian read what arrives. Needs the admin token."><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span class="btn__label">Run now</span></button>
       <div class="live" id="live"><span class="dot"></span><span id="live-text">Connecting…</span></div>
       <img class="client-logo" src="ctm-logo.webp" alt="Compare the Market">
     </div>
@@ -54,6 +54,7 @@
   <main>
     <section id="panel-signals" class="panel" role="tabpanel">
       <div class="hero" id="hero"></div>
+      <section class="insights card" id="insights" aria-label="Brian's Insights"></section>
       <div class="toolbar">
         <div class="toolbar__row">
           <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search everything (e.g. price cap, Ofgem, renewal)" autocomplete="off"></label>
@@ -62,10 +63,7 @@
         <div class="filters" id="source-filters" aria-label="Filter by source"></div>
         <div class="filters filters--topics" id="topic-filters" aria-label="Filter by CTM category"></div>
       </div>
-      <div class="columns">
-        <section class="feed" id="feed" aria-live="polite"></section>
-        <aside class="brian-panel" id="brian-panel"></aside>
-      </div>
+      <section class="feed" id="feed" aria-live="polite"></section>
     </section>
 
     <section id="panel-demand" class="panel" role="tabpanel" hidden>

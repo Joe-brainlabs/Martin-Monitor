@@ -22,6 +22,7 @@ const state = {
   trends: {}, resolution: "weekly", martinPosts: null, showTable: false,
   expanded: new Set(), brianToggled: new Set(),
   showLow: false, hidden: 0, hideBelow: 3, run: null, scrollTo: null,
+  openInsight: null, askOpen: false,
 };
 
 // ---------- helpers ----------
@@ -80,6 +81,7 @@ const outLink = (href, text, cls = "btn") => {
   return a;
 };
 const label = (source) => (state.summary && state.summary.labels[source]) || source;
+const tableBox = (table, wide = false) => { const box = el("div", "table-scroll" + (wide ? " table-scroll--wide" : "")); box.append(table); return box; };
 
 // ---------- tabs ----------
 function setTab(name) {
@@ -104,7 +106,7 @@ async function loadSignals() {
   ]);
   state.summary = summary; state.feed = feed.items; state.insights = insights; state.spread = spread;
   state.hidden = feed.hidden || 0; state.hideBelow = feed.hide_below ?? state.hideBelow;
-  renderLive(); renderHero(); renderFilters(); renderFeed(); renderBrianPanel();
+  renderLive(); renderHero(); renderFilters(); renderFeed(); renderInsights();
 }
 
 function renderLive() {
@@ -416,45 +418,88 @@ function renderFeed() {
 function setShowLow(on) { state.showLow = on; document.getElementById("show-low").checked = on; loadSignals(); }
 document.getElementById("show-low").onchange = (e) => setShowLow(e.target.checked);
 
-function renderBrianPanel() {
-  const panel = document.getElementById("brian-panel");
-  panel.replaceChildren();
-  const head = el("div", "brian-panel__head");
-  const img = el("img"); img.src = "brian.png"; img.alt = "Brian";
-  const t = el("div");
-  t.append(el("div", "brian-panel__title", "Brian's Insights"), el("div", "brian-panel__sub", state.insights?.brian_enabled ? "Reads every new signal each hour" : "Waiting for the Anthropic key"));
-  head.append(img, t);
-  panel.append(head);
-  const list = state.insights?.insights || [];
+// Brian's Insights: up to five headlines under the hero, newest first. Click one to open the detail (body,
+// impact, actions, evidence); one open at a time. The Ask Brian box sits at the foot of the strip.
+const MAX_HEADLINES = 5;
+function renderInsights() {
+  const strip = document.getElementById("insights");
+  const enabled = !!state.insights?.brian_enabled;
+  const seen = new Set(), list = [];
+  for (const ins of state.insights?.insights || []) {
+    const key = (ins.headline || "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;  // the digest can restate a headline across runs; show it once
+    seen.add(key); list.push(ins);
+    if (list.length === MAX_HEADLINES) break;
+  }
+  // Rebuild everything except the Ask Brian box, which keeps its question and answer across the minute refresh.
+  for (const c of Array.from(strip.children)) if (c !== askNode) c.remove();
+
+  const head = el("div", "insights__head");
+  const img = el("img", "insights__avatar"); img.src = "brian.png"; img.alt = "Brian";
+  const titles = el("div", "insights__titles");
+  titles.append(el("div", "insights__title", "Brian's Insights"));
+  titles.append(el("div", "insights__sub", !enabled ? "Waiting for the Anthropic key"
+    : list.length ? `${list.length} ${list.length === 1 ? "headline" : "headlines"}, latest ${ago(list[0].created_at)}. Click one for the detail.`
+    : "Reads every new signal each hour"));
+  head.append(img, titles);
+  if (enabled) {
+    const ask = el("button", "btn btn--brian" + (state.askOpen ? " is-on" : ""));
+    const bimg = el("img"); bimg.src = "brian.png"; bimg.alt = "";
+    ask.append(bimg, document.createTextNode("Ask Brian"), icon("chevron", "ico ico--sm ico--chev"));
+    ask.setAttribute("aria-expanded", String(state.askOpen));
+    ask.onclick = () => { state.askOpen = !state.askOpen; renderInsights(); if (state.askOpen) askBox().querySelector("textarea").focus(); };
+    head.append(ask);
+  }
+  const body = document.createDocumentFragment();
   if (!list.length) {
-    const card = el("div", "card waiting");
-    card.append(el("p", null, state.insights?.brian_enabled ? "No insights written yet. The first pass runs within the hour." : "Once the key is in, Brian reads the new signals every hour and writes here what they mean for Compare the Market:"));
+    const wait = el("div", "insights__waiting");
+    wait.append(el("p", null, enabled ? "No insights written yet. The first pass runs within the hour." : "Once the key is in, Brian reads the new signals every hour and writes here what they mean for Compare the Market:"));
     const ul = el("ul");
-    for (const s of ["Which product line is affected, and which way demand moves", "How soon, and how big, with the evidence linked", "What to do about bids, budgets and creative"]) ul.append(el("li", null, s));
-    card.append(ul);
-    panel.append(card);
-    if (state.insights?.brian_enabled) panel.append(askBox());
-    return;
+    for (const t of ["Which product line is affected, and which way demand moves", "How soon, and how big, with the evidence linked", "What to do about bids, budgets and creative"]) ul.append(el("li", null, t));
+    wait.append(ul);
+    body.append(wait);
+  } else {
+    const ol = el("ol", "headlines");
+    list.forEach((ins, i) => ol.append(headlineRow(ins, i + 1)));
+    body.append(ol);
   }
-  const latest = list[0].created_at;
-  for (const ins of list.filter((i) => i.created_at === latest)) {
-    const card = el("div", "card insight");
-    card.append(el("div", "insight__head", ins.headline || ""), el("div", "insight__meta", `${ago(ins.created_at)}${ins.confidence ? ` · confidence ${ins.confidence}` : ""}`));
-    if (ins.body) card.append(el("p", null, ins.body));
-    if (Array.isArray(ins.impact) && ins.impact.length) card.append(el("div", "brian-view__section", "Impact on CTM"), impactList(ins.impact));
-    if (Array.isArray(ins.actions) && ins.actions.length) card.append(el("div", "brian-view__section", "What CTM could do"), actionList(ins.actions));
-    if (Array.isArray(ins.evidence) && ins.evidence.length) {
-      const ev = el("div", "insight__evidence"); ev.append(document.createTextNode("Evidence: "));
-      ins.evidence.slice(0, 5).forEach((id, i) => { if (i) ev.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; ev.append(a); });
-      card.append(ev);
-    }
-    panel.append(card);
-  }
-  panel.append(askBox());
+  strip.prepend(head, body);
+  if (enabled) { const box = askBox(); box.hidden = !state.askOpen; if (box.parentNode !== strip) strip.append(box); }
+  else if (askNode && askNode.parentNode === strip) askNode.remove();
 }
 
+function headlineRow(ins, rank) {
+  const open = state.openInsight === ins.id;
+  const li = el("li", "headline" + (open ? " is-open" : ""));
+  const btn = el("button", "headline__btn");
+  btn.setAttribute("aria-expanded", String(open));
+  btn.setAttribute("aria-controls", `insight-${ins.id}`);
+  btn.append(el("span", "headline__rank", String(rank)), el("span", "headline__text", ins.headline || ""));
+  const meta = el("span", "headline__meta");
+  const levers = [...new Set((ins.actions || []).map((a) => a && typeof a === "object" && a.lever).filter(Boolean))];
+  for (const l of levers.slice(0, 3)) { const tag = el("span", `lever lever--${l}`, l); tag.title = LEVERS[l] || ""; meta.append(tag); }
+  meta.append(el("span", "headline__when", `${ago(ins.created_at)}${ins.confidence ? ` · ${ins.confidence} confidence` : ""}`));
+  btn.append(meta, icon("chevron", "ico ico--sm headline__chev"));
+  btn.onclick = () => { state.openInsight = open ? null : ins.id; renderInsights(); };
+  li.append(btn);
+
+  const detail = el("div", "headline__detail"); detail.id = `insight-${ins.id}`; detail.hidden = !open;
+  if (ins.body) detail.append(el("p", "headline__body", ins.body));
+  if (Array.isArray(ins.impact) && ins.impact.length) detail.append(el("div", "brian-view__section", "Impact on CTM"), impactList(ins.impact));
+  if (Array.isArray(ins.actions) && ins.actions.length) detail.append(el("div", "brian-view__section", "What CTM could do"), actionList(ins.actions));
+  if (Array.isArray(ins.evidence) && ins.evidence.length) {
+    const ev = el("div", "insight__evidence"); ev.append(document.createTextNode("Evidence: "));
+    ins.evidence.slice(0, 5).forEach((id, i) => { if (i) ev.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; ev.append(a); });
+    detail.append(ev);
+  }
+  li.append(detail);
+  return li;
+}
+
+let askNode = null;
 function askBox() {
-  const box = el("div", "card ask");
+  if (askNode) return askNode;
+  const box = askNode = el("div", "ask");
   box.append(el("div", "section-title", "Ask Brian"));
   const ta = el("textarea", "ask__input"); ta.placeholder = "e.g. Should we raise car insurance bids this week?"; ta.rows = 2; ta.maxLength = 500;
   const row = el("div", "ask__row");
@@ -602,8 +647,8 @@ function renderDemand() {
     lineChart(card, series, posts, state.resolution);
     charts.append(card);
   }
-  const tableBox = document.getElementById("demand-table");
-  tableBox.replaceChildren();
+  const holder = document.getElementById("demand-table");
+  holder.replaceChildren();
   document.getElementById("table-toggle").textContent = state.showTable ? "Hide the table" : "Show the numbers as a table";
   if (state.showTable) {
     const table = el("table", "data");
@@ -619,7 +664,7 @@ function renderDemand() {
       for (const t of data.terms) row.append(el("td", "num", byTerm[t.term][p] ? String(byTerm[t.term][p].value ?? "") : ""));
       table.append(row);
     }
-    tableBox.append(table);
+    holder.append(tableBox(table, true));
   }
 }
 for (const b of document.querySelectorAll(".seg")) b.onclick = () => { state.resolution = b.dataset.res; loadDemand(); };
@@ -734,7 +779,7 @@ function renderSources() {
     row.append(runCell);
     table.append(row);
   }
-  root.append(table);
+  root.append(tableBox(table, true));
 
   if (state.summary.brian) {
     const b = state.summary.brian, usage = b.usage_today || {};
@@ -749,7 +794,7 @@ function renderSources() {
   const tt = el("table", "data");
   const th = el("tr"); th.append(el("th", null, "Sub-brand"), el("th", null, "Phrases")); tt.append(th);
   for (const [t, phrases] of Object.entries(state.summary.topic_defs)) { const r = el("tr"); r.append(el("td", null, nice(t)), el("td", null, phrases.join(", "))); tt.append(r); }
-  topics.append(tt);
+  topics.append(tableBox(tt));
   root.append(topics);
   renderMartometerExplainer(root);
 
@@ -764,7 +809,7 @@ function renderSources() {
     row.append(el("td", "num", String(r.items_new ?? "")), el("td", "err", r.error || ""));
     rt.append(row);
   }
-  runs.append(rt);
+  runs.append(tableBox(rt, true));
   root.append(runs);
 }
 
@@ -786,7 +831,7 @@ function renderMartometerExplainer(root) {
     ["A national press story about him", voice.press], ["A forum or Reddit thread that names Martin or MSE", voice.names_martin],
     ["Any other MSE forum thread", voice.forum], ["Any other Reddit post", voice.reddit],
   ]) { const r = el("tr"); r.append(el("td", null, text), el("td", "num", String(v))); vt.append(r); }
-  mcard.append(vt);
+  mcard.append(tableBox(vt));
   const ref = (k) => refs[k] || {};
   mcard.append(el("p", "lede small", `Reach is relative to what is normal for each source, on a log scale: a typical post scores 0.5, a big day scores 1, and a post as far below typical as a big day is above it scores 0. Typical and big day: X ${num(ref("x").typical)} and ${num(ref("x").big)} impressions, Instagram ${num(ref("instagram").typical)} and ${num(ref("instagram").big)} plays, YouTube ${num(ref("youtube").typical)} and ${num(ref("youtube").big)} views, MSE forum ${num(ref("mse_forum").typical)} and ${num(ref("mse_forum").big)} comments, Reddit ${num(ref("reddit").typical)} and ${num(ref("reddit").big)} points and comments. A post nobody has seen keeps ${Math.round(floor * 100)}% of its voice score and reach decides the rest, so Martin's loud moments float up and his quiet ones sit near the line. Press, MSE news and guide changes carry no engagement numbers and take the midpoint. X engagement is re-read at 1, 6 and 24 hours, so a post's score climbs through the day.`));
   grid.append(mcard);
@@ -798,7 +843,7 @@ function renderMartometerExplainer(root) {
     ["Brian has read it and says relevance high", brian.high], ["Brian says medium", brian.medium], ["Brian says low", brian.low], ["Brian says none: not one for CTM", brian.none],
     ["Not read yet: two or more CTM categories matched by keyword", kw["2"]], ["Not read yet: one category matched", kw["1"]], ["Not read yet: no category matched", kw["0"]],
   ]) { const r = el("tr"); r.append(el("td", null, text), el("td", "num", String(v))); ct.append(r); }
-  ccard.append(ct);
+  ccard.append(tableBox(ct));
   ccard.append(el("p", "lede small", "Brian's call wins once he has read the item, because the keyword tags are only a first pass: a Reddit thread about a utility on someone's credit file matches Credit cards, and Brian will say it is not one for CTM. Asking Brian about an item therefore re-scores it."));
   grid.append(ccard);
   sec.append(grid);
@@ -826,7 +871,7 @@ function renderMartometerExplainer(root) {
     r.append(el("td", null, text), el("td", "num", m.toFixed(2)), el("td", "num", String(c)), el("td", "num", s.toFixed(1)), el("td", s >= x.hide_below ? "shown-yes" : "shown-no", s >= x.hide_below ? "Yes" : "Hidden"));
     et.append(r);
   }
-  ex.append(et);
+  ex.append(tableBox(et, true));
   sec.append(ex);
   sec.append(el("p", "lede small", "The numbers live in sources.yaml under martometer; this page reads them from there, and scores are worked out when items are read, so a change shows at once."));
   root.append(sec);
@@ -880,7 +925,7 @@ function renderRun() {
   const name = (s) => ((state.summary && state.summary.sources) || []).find((x) => x.source === s)?.label || s;
   btn.classList.toggle("is-running", running);
   btn.disabled = running;
-  btn.replaceChildren(icon("play", "ico"), document.createTextNode(running ? `Running ${name(r.current)}… (${r.done.length + 1} of ${r.done.length + 1 + r.queue.length})` : "Run now"));
+  btn.replaceChildren(icon("play", "ico"), el("span", "btn__label", running ? `Running ${name(r.current)}… (${r.done.length + 1} of ${r.done.length + 1 + r.queue.length})` : "Run now"));
   if (state.tab === "sources" && state.summary) renderSources();
 }
 document.getElementById("run-now").onclick = () => runNow();

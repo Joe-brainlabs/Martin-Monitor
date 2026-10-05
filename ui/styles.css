@@ -81,9 +81,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 22px 28px 60px; }
 .filters--topics .chip.is-active { background: var(--navy); border-color: var(--navy); }
 .chip .ico { width: 15px; height: 15px; flex-basis: 15px; }
 
-/* Columns */
-.columns { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
-@media (max-width: 980px) { .columns { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr 1fr; } .hero__read { grid-column: 1 / -1; } }
+@media (max-width: 980px) { .hero { grid-template-columns: 1fr 1fr; } .hero__read { grid-column: 1 / -1; } }
 
 /* Cards and feed items */
 .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 16px; }
@@ -163,21 +161,36 @@ a.item__time:hover { color: var(--blue); }
 .brian-view__actions { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
 .brian-view__conf { margin-top: 6px; font-size: 12px; color: var(--t2); }
 
-/* Brian's Insights panel */
-.brian-panel { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 10px;
-  max-height: calc(100vh - 100px); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-width: thin; }
-@media (max-width: 980px) { .brian-panel { position: static; max-height: none; overflow: visible; } }
-.brian-panel__head { display: flex; gap: 12px; align-items: center; background: var(--gradient-ai); color: #fff; border-radius: var(--radius-card); padding: 14px 16px; }
-.brian-panel__head img { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; object-position: top; background: rgba(255,255,255,.08); }
-.brian-panel__title { font-weight: 800; font-size: 15px; }
-.brian-panel__sub { font-size: 12px; color: var(--on-dark); }
-.insight { border-left: 3px solid var(--purple); }
-.insight__head { font-weight: 800; font-size: 14.5px; }
-.insight__meta { font-size: 12px; color: var(--t2); margin-top: 2px; }
-.insight p { margin: 8px 0 0; font-size: 13.5px; }
-.brian-panel .waiting { color: var(--t2); font-size: 13.5px; }
-.brian-panel .waiting ul { margin: 8px 0 0; padding-left: 18px; }
-.brian-panel .waiting li { margin: 3px 0; }
+/* Brian's Insights: up to five headlines under the hero. Click a row to open its detail; one open at a time. */
+.insights { padding: 0; margin-bottom: 16px; overflow: hidden; border-color: #e3ccff; }
+.insights__head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--gradient-ai); color: #fff; }
+.insights__avatar { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 11px; object-fit: cover; object-position: top; background: rgba(255,255,255,.08); }
+.insights__titles { flex: 1; min-width: 0; }
+.insights__title { font-weight: 800; font-size: 15px; }
+.insights__sub { font-size: 12px; color: var(--on-dark); }
+.insights__head .btn--brian { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; white-space: nowrap; }
+.insights__head .btn--brian:hover { background: rgba(255,255,255,.22); border-color: #fff; }
+.headlines { list-style: none; margin: 0; padding: 0; }
+.headline + .headline { border-top: 1px solid var(--border2); }
+.headline.is-open { background: var(--purple-t); }
+.headline__btn { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 16px; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; background: transparent; padding: 11px 16px; color: var(--navy); border-radius: 0; }
+.headline__btn:hover { background: var(--b400); }
+.headline.is-open .headline__btn:hover { background: #ebdcff; }
+.headline__btn:hover .headline__text { color: var(--blue); }
+.headline__btn:focus-visible { outline-offset: -3px; }
+.headline__rank { font-size: 15px; font-weight: 800; color: var(--purple); text-align: center; font-variant-numeric: tabular-nums; }
+.headline__text { font-weight: 700; font-size: 14.5px; line-height: 1.35; }
+.headline__meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t2); white-space: nowrap; }
+.headline__meta .lever { margin-right: 0; vertical-align: 0; }
+.headline__chev { color: var(--t2); transition: transform .15s; }
+.headline.is-open .headline__chev { transform: rotate(180deg); }
+.headline__detail { padding: 0 16px 16px 54px; }
+.headline__body { margin: 4px 0 0; font-size: 14px; max-width: 820px; }
+.insights__waiting { padding: 14px 16px; color: var(--t2); font-size: 13.5px; }
+.insights__waiting p { margin: 0; }
+.insights__waiting ul { margin: 8px 0 0; padding-left: 18px; }
+.insights__waiting li { margin: 3px 0; }
+.ask { padding: 12px 16px 14px; border-top: 1px solid var(--border2); }
 
 /* Demand charts */
 .segmented { display: inline-flex; border: 1px solid #d5d9e8; border-radius: 10px; overflow: hidden; background: #fff; }
@@ -217,6 +230,8 @@ a.item__time:hover { color: var(--blue); }
 .chart__tip { position: absolute; top: 44px; background: var(--navy); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; pointer-events: none; max-width: 260px; transform: translateX(-50%); z-index: 3; }
 .chart__tip small { display: block; color: var(--on-dark); margin-top: 2px; }
 .table-toggle { margin-top: 14px; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 10px; }
+.table-scroll > table.data { margin-top: 0; }
 table.data { border-collapse: collapse; width: 100%; font-size: 12.5px; background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 10px; }
 table.data th, table.data td { text-align: left; padding: 7px 10px; border-top: 1px solid var(--border2); }
 table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--t2); border-top: 0; background: #fafbfd; }
@@ -281,3 +296,60 @@ td.err { color: var(--danger-text); font-size: 12px; max-width: 320px; }
 .ask__q { font-weight: 700; font-size: 13px; color: var(--navy); }
 .ask__a { margin-top: 6px; font-size: 13.5px; white-space: pre-line; background: var(--purple-t); border-radius: 10px; padding: 10px 12px; }
 .btn--brian:disabled { opacity: .7; cursor: progress; }
+
+/* Under 1024px the top bar no longer fits on one line (brand, four tabs, Run now, the live dot and the client logo),
+   so it wraps and the tabs get a full-width row of their own, evenly spread. */
+@media (max-width: 1023px) {
+  .topbar { flex-wrap: wrap; gap: 8px 16px; padding: 10px 20px 0; }
+  .brand { min-width: 0; flex: 1 1 auto; }
+  .tabs { flex: 1 0 100%; order: 3; margin-left: 0; gap: 0; border-top: 1px solid var(--border2); }
+  .tab { flex: 1 1 0; text-align: center; padding: 10px 4px 12px; }
+  .tab.is-active::after { left: 10px; right: 10px; bottom: -1px; }
+}
+
+/* Phones. The bar stops being sticky (two rows would eat too much of the screen), the subtitle and the Run now
+   label go, the hero tiles sit side by side and wide tables scroll inside their box instead of pushing the page out. */
+@media (max-width: 760px) {
+  .topbar { gap: 8px 12px; padding: 10px 14px 0; position: static; }
+  .brand__logo { width: 36px; height: 36px; }
+  .wordmark { font-size: 17px; }
+  .brand__sub { display: none; }
+  .topbar__right { gap: 10px; }
+  .btn--run { padding: 7px; }
+  .btn--run .btn__label { display: none; }
+  .client-logo { height: 22px; }
+  .tab { font-size: 13.5px; }
+  main { padding: 14px 14px 48px; }
+  h2 { font-size: 19px; }
+  .hero { padding: 16px; border-radius: 16px; gap: 10px; }
+  .hero__avatar { width: 46px; height: 46px; flex-basis: 46px; }
+  .hero__text { font-size: 14.5px; }
+  .tile { padding: 10px 12px; }
+  .tile__num { font-size: 24px; }
+  .insights__head { padding: 10px 12px; gap: 10px; }
+  .insights__sub { display: none; }
+  .headline__btn { grid-template-columns: 22px minmax(0, 1fr) 16px; gap: 4px 10px; padding: 10px 12px; }
+  .headline__rank { grid-column: 1; grid-row: 1; }
+  .headline__text { grid-column: 2; grid-row: 1; font-size: 14px; }
+  .headline__meta { grid-column: 2; grid-row: 2; white-space: normal; flex-wrap: wrap; row-gap: 4px; }
+  .headline__chev { grid-column: 3; grid-row: 1; }
+  .headline__detail { padding: 0 12px 14px; }
+  .ask { padding: 12px; }
+  .toolbar__row { gap: 10px 16px; }
+  .martometer { width: 92px; margin: -6px -4px 0 10px; }
+  .card { padding: 12px 14px; }
+  .item__title { font-size: 15px; }
+  .item__foot { gap: 6px; }
+  .item__metrics { margin-left: 0; flex-wrap: wrap; white-space: normal; width: 100%; }
+  .panel__head { flex-direction: column; align-items: stretch; margin-bottom: 12px; }
+  .segmented { align-self: flex-start; }
+  .charts, .spread-grid { grid-template-columns: 1fr; }
+  .legend, .stats { flex-wrap: wrap; gap: 8px 16px; }
+  .bar { grid-template-columns: 96px 1fr 40px; }
+  .table-scroll--wide > table.data { min-width: 640px; }
+  .formula { font-size: 12px; }
+  .foot { padding: 16px 14px 32px; }
+}
+@media (max-width: 480px) {
+  .live { display: none; }
+}
