@@ -312,6 +312,29 @@ function renderItem(item) {
   }
   if (body) card.append(body);
 
+  // The same words on another channel: a chip per cross-post. Clicking jumps to that card when it is in the feed,
+  // otherwise it opens the post where it lives.
+  if (Array.isArray(item.crossposts) && item.crossposts.length) {
+    const row = el("div", "item__chain");
+    row.append(el("span", null, "Also on:"));
+    for (const c of item.crossposts) {
+      const m = c.metrics || {};
+      const reach = m.views ? count(m.views, c.source === "instagram" ? "play" : "view") : m.impression_count ? count(m.impression_count, "view") : m.likes ? count(m.likes, "like") : m.like_count ? count(m.like_count, "like") : "";
+      const a = el("a", "chain chain--cross"); a.href = c.url || "#"; a.target = "_blank"; a.rel = "noopener";
+      a.title = `${label(c.source)}, ${fmtWhen(c.published_at)}. The same text as this post.`;
+      a.append(icon((SOURCE_META[c.source] || {}).glyph || "press", "ico ico--sm"), document.createTextNode(`${label(c.source)}${reach ? ` · ${reach}` : ""} · ${ago(c.published_at)}`));
+      a.onclick = (e) => {
+        const other = document.querySelector(`.item[data-id="${c.id}"]`);
+        if (!other) return;  // not in the feed right now: follow the link
+        e.preventDefault();
+        other.scrollIntoView({ behavior: "smooth", block: "center" });
+        other.classList.add("is-flash"); setTimeout(() => other.classList.remove("is-flash"), 1600);
+      };
+      row.append(a);
+    }
+    card.append(row);
+  }
+
   if (item.chain && (item.chain.mse.length || item.chain.press.length)) {
     const row = el("div", "item__chain");
     row.append(el("span", null, "Picked up:"));
@@ -740,8 +763,8 @@ function renderSpread() {
 
 // ---------- sources ----------
 async function loadSources() {
-  const [summary, runs] = await Promise.all([getJSON("/api/summary"), getJSON("/api/runs?limit=25")]);
-  state.summary = summary; state.runs = runs;
+  const [summary, runs, reread] = await Promise.all([getJSON("/api/summary"), getJSON("/api/runs?limit=25"), getJSON("/api/brian/reread").catch(() => null)]);
+  state.summary = summary; state.runs = runs; state.reread = reread;
   renderLive(); renderSources();
 }
 
@@ -787,6 +810,7 @@ function renderSources() {
       ? `Brian: ${usage.calls || 0} calls today (${usage.by_kind ? Object.entries(usage.by_kind).map(([k, v]) => `${v} ${k}`).join(", ") : "none"}), about $${(usage.cost_usd || 0).toFixed(2)}. Model ${b.model}. Views are written once per item; the digest runs hourly when there is something new.`
       : "Brian is off: ANTHROPIC_API_KEY is not set.");
     root.append(line);
+    if (b.enabled && state.reread) root.append(rereadLine(state.reread));
   }
   const topics = el("details", "explainer");
   topics.append(el("summary", null, "How items get a CTM category"));
@@ -811,6 +835,36 @@ function renderSources() {
   }
   runs.append(tableBox(rt, true));
   root.append(runs);
+}
+
+// Older views predate the Search, Programmatic and SEO sections. This line says how many, what a re-read would cost,
+// and offers to do it (admin token). While one runs it follows the progress and reloads the tab at the end.
+let rereadTimer = null;
+function rereadLine(r) {
+  const p = el("p", "lede reread");
+  if (r.running) {
+    p.append(document.createTextNode(`Re-reading older views: ${r.done + r.failed} of ${r.total} done${r.failed ? `, ${r.failed} failed` : ""}.`));
+    clearTimeout(rereadTimer);
+    rereadTimer = setTimeout(async () => { try { state.reread = await getJSON("/api/brian/reread"); } catch (_) { return; } if (state.tab === "sources") (state.reread.running ? renderSources() : loadSources()); }, 3000);
+    return p;
+  }
+  if (!r.pending) {
+    p.append(document.createTextNode(r.total ? `Re-read done: ${r.done} views rewritten${r.failed ? `, ${r.failed} failed (${r.last_error || "see logs"})` : ""}. Every stored view now has the Search, Programmatic and SEO sections.` : "Every stored view has the Search, Programmatic and SEO sections."));
+    return p;
+  }
+  p.append(document.createTextNode(`${r.pending} older ${r.pending === 1 ? "view predates" : "views predate"} the Search, Programmatic and SEO sections (about $${r.est_cost_usd.toFixed(2)} to re-read). `));
+  const b = el("button", "btn btn--row-run", `Re-read ${Math.min(r.pending, 50)} now`);
+  b.title = "Rewrite the newest older views with the channel sections (admin token)";
+  b.onclick = async () => {
+    const token = adminToken(); if (!token) return;
+    b.disabled = true;
+    const res = await fetch("/api/brian/reread?limit=50", { method: "POST", headers: { "X-Admin-Token": token } });
+    if (res.status === 401) { sessionStorage.removeItem(TOKEN_KEY); alert("That admin token was not accepted."); b.disabled = false; return; }
+    if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (_) {} alert(`Could not start: ${d}`); b.disabled = false; return; }
+    state.reread = await res.json(); renderSources();
+  };
+  p.append(b);
+  return p;
 }
 
 function renderMartometerExplainer(root) {

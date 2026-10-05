@@ -18,7 +18,7 @@ from .brian import ask as brian_ask
 from .brian import client as brian
 from .brian import digest as brian_digest
 from .brian import views as brian_views
-from .queries import ACTIVITY, attach_chains
+from .queries import ACTIVITY, attach_chains, attach_crossposts
 from .scheduler import build, run_source
 from .sources import ITEM_SOURCE_LABELS, REGISTRY, instagram, x
 
@@ -206,6 +206,7 @@ def feed(
         ).fetchall()
         items = [db.row_to_item(r) for r in rows]
         attach_chains(con, items)
+        attach_crossposts(con, items)
         relevance.attach(items)
         hidden = 0
         if threshold is not None:
@@ -228,6 +229,8 @@ def item(item_id: int):
             "SELECT captured_at, metrics_json FROM metric_snapshots WHERE item_id = ? ORDER BY captured_at", (item_id,)
         ).fetchall()
         out = db.row_to_item(row)
+        attach_chains(con, [out])
+        attach_crossposts(con, [out])
         out["martometer"] = relevance.score(out)
         out["snapshots"] = [{"captured_at": s["captured_at"], "metrics": db.json.loads(s["metrics_json"])} for s in snapshots]
         return out
@@ -497,6 +500,97 @@ def brian_digest_endpoint(x_admin_token: str | None = Header(default=None)):
     con = db.connect()
     try:
         return {"insights": brian_digest.maybe_run(con, brian.CFG, force=True), "read": db.get_state(con, "brian_read")}
+    finally:
+        con.close()
+
+
+# Re-reading older views. Views written before Brian's View had its Search, Programmatic and SEO sections carry a flat
+# `actions` list and no `search` key. This job rewrites them, newest first, in the background; each costs a few cents.
+_REREAD: dict = {"running": False, "started_at": None, "finished_at": None, "total": 0, "done": 0, "failed": 0, "last_error": None}
+_REREAD_LOCK = threading.Lock()
+REREAD_COST_USD = 0.03  # rough cost of one view: cached system prompt, a few hundred output tokens
+_RELEVANCE_RANK = {"low": 1, "medium": 2, "high": 3}
+
+
+def _reread_candidates(con, min_relevance: str, limit: int) -> list[int]:
+    wanted = [k for k, v in _RELEVANCE_RANK.items() if v >= _RELEVANCE_RANK[min_relevance]]
+    marks = ",".join("?" * len(wanted))
+    return [
+        r["id"] for r in con.execute(
+            f"""SELECT id FROM items WHERE brian_json IS NOT NULL AND json_extract(brian_json, '$.search') IS NULL
+                AND json_extract(brian_json, '$.relevance') IN ({marks})
+                ORDER BY COALESCE(published_at, first_seen_at) DESC LIMIT ?""",
+            (*wanted, limit),
+        )
+    ]
+
+
+def _reread_worker(ids: list[int]) -> None:
+    con = db.connect()
+    try:
+        for item_id in ids:
+            try:
+                row = con.execute(
+                    "SELECT id, source, kind, author, title, text, url, published_at, metrics_json, topics_json, brian_json FROM items WHERE id = ?",
+                    (item_id,),
+                ).fetchone()
+                if row:
+                    item = db.row_to_item(row)
+                    attach_chains(con, [item])
+                    attach_crossposts(con, [item])
+                    brian_views.write_view(con, item)
+                with _REREAD_LOCK:
+                    _REREAD["done"] += 1
+            except Exception as exc:
+                log.error("re-read of item %s failed: %s", item_id, exc)
+                with _REREAD_LOCK:
+                    _REREAD["failed"] += 1
+                    _REREAD["last_error"] = f"item {item_id}: {str(exc)[:200]}"
+    finally:
+        con.close()
+        with _REREAD_LOCK:
+            _REREAD.update(running=False, finished_at=db.utcnow())
+
+
+def _reread_status(con, min_relevance: str) -> dict:
+    pending = len(_reread_candidates(con, min_relevance, 100000))
+    with _REREAD_LOCK:
+        return {**_REREAD, "pending": pending, "est_cost_usd": round(pending * REREAD_COST_USD, 2), "min_relevance": min_relevance}
+
+
+@app.get("/api/brian/reread")
+def brian_reread_status(min_relevance: str = Query("low", pattern="^(low|medium|high)$")):
+    """How many stored views still predate the channel sections (relevance at or above min_relevance; 'none' views
+    have no actions and are never re-read), a rough cost, and the progress of the current or last re-read."""
+    con = db.connect()
+    try:
+        return _reread_status(con, min_relevance)
+    finally:
+        con.close()
+
+
+@app.post("/api/brian/reread", status_code=202)
+def brian_reread(
+    limit: int = Query(50, ge=1, le=500),
+    min_relevance: str = Query("low", pattern="^(low|medium|high)$"),
+    x_admin_token: str | None = Header(default=None),
+):
+    """Rewrite up to `limit` older views, newest first, in the background. Returns at once; follow GET /api/brian/reread.
+    Admin token required: every view is a paid call."""
+    _require_admin(x_admin_token)
+    if not brian.enabled():
+        raise HTTPException(503, "Brian is not connected (ANTHROPIC_API_KEY not set)")
+    con = db.connect()
+    try:
+        ids = _reread_candidates(con, min_relevance, limit)
+        with _REREAD_LOCK:
+            if _REREAD["running"]:
+                raise HTTPException(409, "A re-read is already in progress")
+            now = db.utcnow()
+            _REREAD.update(running=bool(ids), started_at=now, finished_at=None if ids else now, total=len(ids), done=0, failed=0, last_error=None)
+        if ids:
+            threading.Thread(target=_reread_worker, args=(ids,), name="brian-reread", daemon=True).start()
+        return _reread_status(con, min_relevance)
     finally:
         con.close()
 

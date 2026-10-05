@@ -103,6 +103,10 @@ a.item__time:hover { color: var(--blue); }
 .item__chain { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; }
 .chain { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--b400); border: 1px solid var(--b300); color: var(--navy); font-weight: 600; }
 .chain a { color: var(--blue); }
+a.chain--cross { color: var(--navy); }
+a.chain--cross:hover { border-color: var(--blue); background: var(--b300); text-decoration: none; }
+.item.is-flash { box-shadow: 0 0 0 3px var(--b100); transition: box-shadow .3s; }
+.reread .btn { margin-left: 4px; vertical-align: 1px; }
 .item__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .item__metrics { margin-left: auto; display: flex; gap: 10px; font-size: 12.5px; color: var(--t2); white-space: nowrap; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5d9e8; background: #fff; color: var(--navy); border-radius: 10px; padding: 6px 11px; font-size: 12.5px; font-weight: 700; }

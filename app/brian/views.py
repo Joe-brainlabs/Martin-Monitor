@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from .. import db
 from ..config import SOURCES
-from ..queries import attach_chains
+from ..queries import attach_chains, attach_crossposts
 from . import client as brian
 
 TOPICS = tuple(SOURCES["topics"].keys())
@@ -73,6 +73,7 @@ def eligible(con, cfg: dict, limit: int) -> list[dict]:
     ).fetchall()
     items = [db.row_to_item(r) for r in rows]
     attach_chains(con, items)
+    attach_crossposts(con, items)
     return items
 
 
@@ -98,6 +99,9 @@ def item_prompt(item: dict, parent: str | None = None) -> str:
         pickup.append(f"MSE ran it ({len(chain['mse'])})")
     if chain.get("press"):
         pickup.append("press pickup: " + ", ".join(p.get("publisher") or "unknown" for p in chain["press"]))
+    for c in item.get("crossposts") or []:
+        reach = ", ".join(f"{k} {v}" for k, v in (c.get("metrics") or {}).items())
+        pickup.append(f"the same text was also posted on {c['source']}" + (f" ({reach})" if reach else ""))
     label = SOURCES["topics"] and (item.get("topics") or [])
     # Prompt injection surface: the item text is other people's writing. It sits inside <item> tags in the
     # user turn, the persona says to treat it as data, and Brian has no tools, so the blast radius is one
@@ -142,6 +146,7 @@ def view_item(con, item_id: int) -> dict:
     if item.get("brian"):
         return item["brian"]
     attach_chains(con, [item])
+    attach_crossposts(con, [item])
     return write_view(con, item)
 
 
