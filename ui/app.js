@@ -20,7 +20,7 @@ const state = {
   tab: "signals", source: null, q: "",
   summary: null, feed: [], insights: null, spread: null, runs: [],
   trends: {}, resolution: "weekly", martinPosts: null, showTable: false,
-  expanded: new Set(), brianToggled: new Set(),
+  expanded: new Set(), brianOpen: new Set(),
   showLow: false, hidden: 0, hideBelow: 3, run: null, scrollTo: null,
   openInsight: null, askOpen: false,
 };
@@ -262,7 +262,7 @@ async function askBrianAbout(item, card) {
     const r = await fetch(`/api/brian/view/${item.id}`, { method: "POST" });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     item.brian = await r.json();
-    state.brianToggled.delete(item.id);  // a fresh view opens by default
+    state.brianOpen.add(item.id);  // a fresh view opens so the reader sees what Brian said
     card.replaceWith(renderItem(item));
   } catch (err) {
     if (btn) { btn.disabled = false; btn.replaceChildren(document.createTextNode(`Brian couldn't read it: ${err.message}`)); }
@@ -366,8 +366,8 @@ function renderItem(item) {
     foot.append(b);
   }
   const brianOn = state.insights?.brian_enabled;
-  const brianOpen = !!item.brian !== state.brianToggled.has(item.id);  // default open when a view exists; a click flips it
-  const toggleBrian = () => { if (state.brianToggled.has(item.id)) state.brianToggled.delete(item.id); else state.brianToggled.add(item.id); card.replaceWith(renderItem(item)); };
+  const brianOpen = state.brianOpen.has(item.id);  // collapsed by default; the button opens it, and it stays open across re-renders
+  const toggleBrian = () => { if (brianOpen) state.brianOpen.delete(item.id); else state.brianOpen.add(item.id); card.replaceWith(renderItem(item)); };
   const bb = el("button", "btn btn--brian" + (brianOpen ? " is-on" : ""));
   const bimg = el("img"); bimg.src = "brian.png"; bimg.alt = "";
   if (item.brian) {

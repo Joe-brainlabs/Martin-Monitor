@@ -154,7 +154,7 @@ a.chain--cross:hover { border-color: var(--blue); background: var(--b300); text-
 .play--search { --rail: var(--blue); }
 .play--programmatic { --rail: var(--magenta); }
 .play--seo { --rail: var(--success-text); }
-.play--other { --rail: #c5c9d6; border-style: dashed; border-left-style: solid; background: transparent; }
+.play--other { --rail: #c5c9d6; border-style: dashed; border-left-style: solid; }
 .play__label { display: flex; align-items: center; min-height: 24px; align-self: stretch; border-right: 1px solid var(--border); padding-right: 10px; }
 .play .brian-view__actions { margin: 0; padding-left: 0; list-style: none; font-size: 13.5px; }
 .play .brian-view__actions li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 0 8px; align-items: start; margin: 0; padding: 3px 0; line-height: 1.45; }
