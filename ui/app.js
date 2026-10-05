@@ -210,7 +210,7 @@ function impactList(impact) {
 
 // The Martometer: a speedometer dial, relevance to CTM out of 10. Martin's face sits in the middle, the scale runs
 // 0 to 10 around the outside and the needle points at the score. Scored on the server (app/relevance.py).
-const DIAL = { w: 120, h: 92, cx: 60, cy: 56, r: 44, face: 17, start: 210, sweep: 240 };  // degrees, anticlockwise from east
+const DIAL = { w: 120, h: 106, cx: 60, cy: 66, r: 44, face: 19, start: 210, sweep: 240 };  // degrees, anticlockwise from east
 function dialPoint(value, radius) {
   const deg = DIAL.start - (DIAL.sweep / 10) * value, rad = (deg * Math.PI) / 180;
   return [DIAL.cx + radius * Math.cos(rad), DIAL.cy - radius * Math.sin(rad)];
@@ -247,15 +247,16 @@ function martometer(item) {
   }
   // Martin in the middle, on a white disc
   svg.append(svgEl("circle", { cx: DIAL.cx, cy: DIAL.cy, r: DIAL.face + 1.5, class: "speedo__disc" }));
-  svg.append(svgEl("image", { href: "logo.png", x: DIAL.cx - DIAL.face, y: DIAL.cy - DIAL.face, width: DIAL.face * 2, height: DIAL.face * 2, preserveAspectRatio: "xMidYMin slice", "clip-path": `url(#${clipId})`, class: "speedo__face" }));
+  const fit = DIAL.face * 2 - 3;  // the drawing is taller than it is wide; "meet" keeps all of it inside the disc
+  svg.append(svgEl("image", { href: "logo.png", x: DIAL.cx - fit / 2, y: DIAL.cy - fit / 2, width: fit, height: fit, preserveAspectRatio: "xMidYMid meet", "clip-path": `url(#${clipId})`, class: "speedo__face" }));
   // the needle: from the edge of the face out towards the scale, pivoting on him
   const deg = DIAL.start - (DIAL.sweep / 10) * score, rad = (deg * Math.PI) / 180;
   const ux = Math.cos(rad), uy = -Math.sin(rad), px = -uy, py = ux;
   const base = [DIAL.cx + ux * (DIAL.face + 2.5), DIAL.cy + uy * (DIAL.face + 2.5)], tip = [DIAL.cx + ux * (DIAL.r - 7), DIAL.cy + uy * (DIAL.r - 7)];
   const pts = [tip, [base[0] + px * 2.2, base[1] + py * 2.2], [base[0] - px * 2.2, base[1] - py * 2.2]].map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
   svg.append(svgEl("polygon", { points: pts, class: "speedo__needle" }));
-  svg.append(svgText(DIAL.cx, DIAL.cy + DIAL.face + 12.5, m.score.toFixed(1), "speedo__num", "middle"));
-  svg.append(svgText(DIAL.cx, DIAL.h - 2, "MARTOMETER", "speedo__name", "middle"));
+  svg.append(svgText(DIAL.cx, 6.5, "MARTOMETER", "speedo__name", "middle"));
+  svg.append(svgText(DIAL.cx, DIAL.h - 3, m.score.toFixed(1), "speedo__num", "middle"));
   box.append(svg);
   return box;
 }
