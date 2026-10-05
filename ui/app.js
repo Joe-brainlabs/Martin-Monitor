@@ -217,22 +217,55 @@ function impactList(impact) {
   return wrap;
 }
 
-// The Martometer: relevance to CTM out of 10, Martin's head as the slider thumb. Scored on the server (app/relevance.py).
+// The Martometer: a speedometer dial, relevance to CTM out of 10. Martin's face sits in the middle, the scale runs
+// 0 to 10 around the outside and the needle points at the score. Scored on the server (app/relevance.py).
+const DIAL = { w: 120, h: 92, cx: 60, cy: 56, r: 44, face: 17, start: 210, sweep: 240 };  // degrees, anticlockwise from east
+function dialPoint(value, radius) {
+  const deg = DIAL.start - (DIAL.sweep / 10) * value, rad = (deg * Math.PI) / 180;
+  return [DIAL.cx + radius * Math.cos(rad), DIAL.cy - radius * Math.sin(rad)];
+}
+function dialArc(from, to, radius) {
+  const [x0, y0] = dialPoint(from, radius), [x1, y1] = dialPoint(to, radius);
+  const large = (to - from) * (DIAL.sweep / 10) > 180 ? 1 : 0;
+  return `M${x0.toFixed(2)},${y0.toFixed(2)} A${radius},${radius} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+}
 function martometer(item) {
   const m = item.martometer;
   if (!m) return null;
-  const pct = Math.max(0, Math.min(100, m.score * 10));
-  const box = el("div", "martometer");
+  const score = Math.max(0, Math.min(10, m.score));
+  const box = el("div", "martometer" + (m.low ? " is-low" : ""));
   box.setAttribute("role", "meter"); box.setAttribute("aria-valuemin", "0"); box.setAttribute("aria-valuemax", "10"); box.setAttribute("aria-valuenow", String(m.score));
   box.setAttribute("aria-label", `Martometer ${m.score.toFixed(1)} out of 10`);
-  box.title = `Martometer ${m.score.toFixed(1)} = 10 × Martin ${m.martin} (${m.who}${m.reach != null ? `, ${m.seen}` : ""}) × CTM ${m.ctm} (${m.why}). Click the label for how it works.`;
-  const lab = el("button", "martometer__label", "Martometer");
-  lab.onclick = (e) => { e.stopPropagation(); state.scrollTo = "martometer-explainer"; setTab("sources"); };
-  const track = el("span", "martometer__track");
-  const fill = el("span", "martometer__fill"); fill.style.width = `${pct}%`;
-  const thumb = el("img", "martometer__thumb"); thumb.src = "logo.png"; thumb.alt = ""; thumb.style.left = `${pct}%`;
-  track.append(fill, thumb);
-  box.append(lab, track, el("b", "martometer__num", m.score.toFixed(1)));
+  box.title = `Martometer ${m.score.toFixed(1)} = 10 × Martin ${m.martin} (${m.who}${m.reach != null ? `, ${m.seen}` : ""}) × CTM ${m.ctm} (${m.why}). Click for how it works.`;
+  box.onclick = (e) => { e.stopPropagation(); state.scrollTo = "martometer-explainer"; setTab("sources"); };
+  const svg = svgEl("svg", { viewBox: `0 0 ${DIAL.w} ${DIAL.h}`, class: "speedo", "aria-hidden": "true" });
+  const clipId = `mm-face-${item.id}`;
+  const defs = svgEl("defs"); const clip = svgEl("clipPath", { id: clipId });
+  clip.append(svgEl("circle", { cx: DIAL.cx, cy: DIAL.cy, r: DIAL.face })); defs.append(clip); svg.append(defs);
+  // the scale: track, the low band, the filled arc up to the score
+  svg.append(svgEl("path", { d: dialArc(0, 10, DIAL.r), class: "speedo__track" }));
+  svg.append(svgEl("path", { d: dialArc(0, state.hideBelow || 3, DIAL.r), class: "speedo__lowband" }));
+  if (score > 0.05) svg.append(svgEl("path", { d: dialArc(0, score, DIAL.r), class: "speedo__fill" }));
+  // ticks and the numbers 0 to 10 around the outside
+  for (let i = 0; i <= 10; i++) {
+    const [x0, y0] = dialPoint(i, DIAL.r - 4.5), [x1, y1] = dialPoint(i, DIAL.r + 3.5);
+    svg.append(svgEl("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: "speedo__tick" }));
+    const [lx, ly] = dialPoint(i, DIAL.r + 10);
+    svg.append(svgText(lx.toFixed(1), (ly + 2.4).toFixed(1), String(i), "speedo__label", "middle"));
+    if (i < 10) { const [a, b] = dialPoint(i + 0.5, DIAL.r - 2), [c, d] = dialPoint(i + 0.5, DIAL.r + 2.5); svg.append(svgEl("line", { x1: a, y1: b, x2: c, y2: d, class: "speedo__tick speedo__tick--minor" })); }
+  }
+  // Martin in the middle, on a white disc
+  svg.append(svgEl("circle", { cx: DIAL.cx, cy: DIAL.cy, r: DIAL.face + 1.5, class: "speedo__disc" }));
+  svg.append(svgEl("image", { href: "logo.png", x: DIAL.cx - DIAL.face, y: DIAL.cy - DIAL.face, width: DIAL.face * 2, height: DIAL.face * 2, preserveAspectRatio: "xMidYMin slice", "clip-path": `url(#${clipId})`, class: "speedo__face" }));
+  // the needle: from the edge of the face out towards the scale, pivoting on him
+  const deg = DIAL.start - (DIAL.sweep / 10) * score, rad = (deg * Math.PI) / 180;
+  const ux = Math.cos(rad), uy = -Math.sin(rad), px = -uy, py = ux;
+  const base = [DIAL.cx + ux * (DIAL.face + 2.5), DIAL.cy + uy * (DIAL.face + 2.5)], tip = [DIAL.cx + ux * (DIAL.r - 7), DIAL.cy + uy * (DIAL.r - 7)];
+  const pts = [tip, [base[0] + px * 2.2, base[1] + py * 2.2], [base[0] - px * 2.2, base[1] - py * 2.2]].map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+  svg.append(svgEl("polygon", { points: pts, class: "speedo__needle" }));
+  svg.append(svgText(DIAL.cx, DIAL.cy + DIAL.face + 12.5, m.score.toFixed(1), "speedo__num", "middle"));
+  svg.append(svgText(DIAL.cx, DIAL.h - 2, "MARTOMETER", "speedo__name", "middle"));
+  box.append(svg);
   return box;
 }
 
@@ -273,6 +306,8 @@ function renderItem(item) {
   const meta = SOURCE_META[item.source] || { glyph: "press", open: "Open the source" };
   const card = el("article", "card item" + (item.martometer && item.martometer.low ? " is-low" : ""));
   card.dataset.id = item.id;
+  const gauge = martometer(item);
+  if (gauge) card.append(gauge);
 
   const head = el("div", "item__head");
   const badge = meta.home ? el("a", "badge") : el("span", "badge");
@@ -291,8 +326,6 @@ function renderItem(item) {
   when.textContent = (bumped ? "active " : "") + ago(item.activity_at || item.published_at || item.first_seen_at);
   when.title = fmtWhen(item.activity_at || item.published_at || item.first_seen_at);
   if (item.url) { when.href = item.url; when.target = "_blank"; when.rel = "noopener"; }
-  const gauge = martometer(item);
-  if (gauge) head.append(gauge);
   head.append(when);
   card.append(head);
 
