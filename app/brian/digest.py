@@ -1,4 +1,4 @@
-"""Brian's hourly digest: a read of the last 24 hours and a few insights, grounded in stored items."""
+"""Brian's hourly digest: a short read of the last 24 hours and one recommendation per channel, grounded in stored items."""
 
 import datetime as dt
 import json
@@ -10,19 +10,45 @@ from .. import db
 from . import client as brian
 from .views import Action, Impact
 
+# The three channel slots, in the order the page shows them. Anything that fits none of them goes in "other".
+CHANNELS = ("search", "programmatic", "seo")
+
 
 class Insight(BaseModel):
-    headline: str = Field(description="A short, specific headline a media planner would act on")
-    body: str = Field(description="Two to four sentences: what happened, what consumers will do, what it means for CTM")
+    headline: str = Field(description="A short, specific headline the channel team would act on. Twelve words or fewer.")
+    body: str = Field(description="Two or three plain sentences: what happened, what consumers will do, what it means for CTM")
     impact: list[Impact] = Field(description="Which CTM product lines move, which way, how much and when")
-    actions: list[Action] = Field(description="Up to three concrete actions, each tagged with the lever it pulls")
+    actions: list[Action] = Field(description="Up to three concrete actions for this channel, each tagged with the lever it pulls")
     confidence: Literal["low", "medium", "high"]
     evidence_ids: list[int] = Field(description="Item ids from the context that support this insight")
 
 
 class Digest(BaseModel):
-    daily_read: str = Field(description="At most 70 words, two or three plain sentences: what the last 24 hours mean for Compare the Market. Lead with the one thing that matters.")
-    insights: list[Insight] = Field(description="Two to four insights, most important first. Fewer if little happened.")
+    daily_read: str = Field(
+        description="At most 45 words, one or two plain sentences: what the last 24 hours mean for Compare the Market. "
+        "Lead with the one thing that matters. If nothing happened, say so in one sentence."
+    )
+    search: Insight | None = Field(
+        description="Paid search. The one recommendation for CTM's search team this week: bids, budgets, query coverage, "
+        "ad copy that echoes his phrasing. Null only when nothing in the window is relevant to CTM for this channel."
+    )
+    programmatic: Insight | None = Field(
+        description="Programmatic: display, online video including YouTube, connected TV and audio. The one recommendation "
+        "for the programmatic team: audiences, contextual placements, video or display creative, pacing, flighting around "
+        "the Money Show. Null only when nothing in the window is relevant to CTM for this channel."
+    )
+    seo: Insight | None = Field(
+        description="SEO and content. The one recommendation for the organic team: which guide or page to publish or refresh, "
+        "which query to target, how to word the title, timing. Null only when nothing in the window is relevant to CTM for this channel."
+    )
+    other: list[Insight] = Field(
+        description="At most two further insights that fit none of the three channels: PR, a brand risk, something to watch. Usually empty."
+    )
+
+    def channelled(self) -> list[tuple[str, Insight]]:
+        """(channel, insight) pairs in display order: the three channel slots that were filled, then the rest."""
+        slots = [(c, getattr(self, c)) for c in CHANNELS]
+        return [(c, i) for c, i in slots if i is not None] + [("other", i) for i in self.other[:2]]
 
 
 def context_pack(con, hours: int = 24) -> str:
@@ -68,6 +94,13 @@ def context_pack(con, hours: int = 24) -> str:
     )
 
 
+INSTRUCTION = (
+    "Write Brian's read of the window, then one recommendation each for paid search, programmatic (display and video) and SEO, "
+    "each with the actions that channel's team could take this week. Leave a channel null only when nothing in the window is "
+    "relevant to Compare the Market for it: an empty slot beats a padded one. Anything else that matters goes in other."
+)
+
+
 def maybe_run(con, cfg: dict, new_views: int = 0, force: bool = False) -> int:
     """Write a digest when there is something new, or when the last read is older than six hours."""
     last = db.get_state(con, "brian_read_at")
@@ -76,23 +109,24 @@ def maybe_run(con, cfg: dict, new_views: int = 0, force: bool = False) -> int:
         return 0
     response = brian.client().messages.parse(
         model=brian.MODEL,
-        max_tokens=4000,
+        max_tokens=6000,
         system=brian.system_blocks(),
-        messages=[{"role": "user", "content": context_pack(con, cfg.get("digest_hours", 24)) + "\n\nWrite Brian's read of the window and the insights that matter for Compare the Market."}],
+        messages=[{"role": "user", "content": context_pack(con, cfg.get("digest_hours", 24)) + "\n\n" + INSTRUCTION}],
         output_format=Digest,
     )
     digest = response.parsed_output
     now = db.utcnow()
-    for ins in digest.insights:
+    window_start = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=cfg.get("digest_hours", 24))).isoformat(timespec="seconds")
+    written = digest.channelled()
+    for channel, ins in written:
         con.execute(
-            """INSERT INTO insights (created_at, window_start, window_end, headline, body, impact_json, actions_json, confidence, evidence_json, model)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (now, (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=cfg.get("digest_hours", 24))).isoformat(timespec="seconds"), now,
-             ins.headline, ins.body, json.dumps([i.model_dump() for i in ins.impact]), json.dumps([a.model_dump() for a in ins.actions]), ins.confidence,
-             json.dumps(ins.evidence_ids), brian.MODEL),
+            """INSERT INTO insights (created_at, window_start, window_end, channel, headline, body, impact_json, actions_json, confidence, evidence_json, model)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (now, window_start, now, channel, ins.headline, ins.body, json.dumps([i.model_dump() for i in ins.impact]),
+             json.dumps([a.model_dump() for a in ins.actions]), ins.confidence, json.dumps(ins.evidence_ids), brian.MODEL),
         )
     con.commit()
     db.set_state(con, "brian_read", digest.daily_read)
     db.set_state(con, "brian_read_at", now)
     brian.record_usage(con, response.usage, "digest")
-    return len(digest.insights)
+    return len(written)

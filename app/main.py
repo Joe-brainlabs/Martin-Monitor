@@ -257,10 +257,10 @@ def trends(term: str | None = None, resolution: str = "weekly"):
 
 @app.get("/api/insights")
 def insights(limit: int = Query(20, ge=1, le=100)):
-    """Brian's Insights (empty until the Anthropic key is connected and Phase 3 lands)."""
+    """Brian's Highlights: newest digest first; inside a digest search, programmatic, seo, then other (insert order)."""
     con = db.connect()
     try:
-        rows = con.execute("SELECT * FROM insights ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        rows = con.execute("SELECT * FROM insights ORDER BY created_at DESC, id ASC LIMIT ?", (limit,)).fetchall()
         out = []
         for r in rows:
             d = dict(r)

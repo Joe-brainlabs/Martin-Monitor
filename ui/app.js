@@ -106,7 +106,7 @@ async function loadSignals() {
   ]);
   state.summary = summary; state.feed = feed.items; state.insights = insights; state.spread = spread;
   state.hidden = feed.hidden || 0; state.hideBelow = feed.hide_below ?? state.hideBelow;
-  renderLive(); renderHero(); renderFilters(); renderFeed(); renderInsights();
+  renderLive(); renderHighlights(); renderFilters(); renderFeed();
 }
 
 function renderLive() {
@@ -117,45 +117,6 @@ function renderLive() {
   live.classList.toggle("is-live", !!fresh);
   live.classList.toggle("is-stale", !!newest && !fresh);
   document.getElementById("live-text").textContent = newest ? `Updated ${ago(newest)}` : "No runs yet";
-}
-
-function renderHero() {
-  const s = state.summary, by = s.by_item_source || {};
-  const martin = (by.x_martinslewis?.last_24h || 0) + (by.instagram?.last_24h || 0);
-  const press = by.press?.last_24h || 0;
-  const forum = (state.spread?.boards || []).reduce((a, b) => a + (b.active_24h || 0), 0);
-  const topics = Object.entries(s.topics_24h || {}).sort((a, b) => b[1] - a[1]);
-  const hero = document.getElementById("hero");
-  hero.replaceChildren();
-
-  const read = el("div", "hero__read");
-  const avatar = el("img", "hero__avatar"); avatar.src = "brian.png"; avatar.alt = "Brian";
-  const body = el("div");
-  const brianRead = s.brian && s.brian.read;
-  body.append(el("div", "hero__eyebrow", brianRead ? "Brian's read of the last 24 hours" : "The last 24 hours"));
-  const sentence = [
-    martin ? `Martin posted ${martin} ${martin === 1 ? "time" : "times"} on X and Instagram.` : "Martin has not posted on X or Instagram in the last 24 hours.",
-    topics.length ? `In play: ${topics.slice(0, 3).map(([t]) => nice(t)).join(", ")}.` : "",
-    `${press} press ${press === 1 ? "story" : "stories"} mentioned him and ${forum} forum ${forum === 1 ? "thread was" : "threads were"} active.`,
-  ].filter(Boolean).join(" ");
-  const readEl = el("p", "hero__text" + (brianRead && brianRead.length > 360 ? " is-clamped" : ""), brianRead || sentence);
-  readEl.title = brianRead && brianRead.length > 360 ? "Click to read all of it" : "";
-  readEl.onclick = () => readEl.classList.toggle("is-clamped");
-  body.append(readEl);
-  // No summary line under Brian's read: the counts sit in the tiles and the categories in the filters. The note
-  // only appears while there is no read yet, to say why.
-  if (!brianRead) body.append(el("p", "hero__note", state.insights?.brian_enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
-  read.append(avatar, body);
-  hero.append(read);
-
-  const tile = (labelText, value, sub) => {
-    const t = el("div", "tile");
-    t.append(el("div", "tile__label", labelText), el("div", "tile__num", String(value)));
-    if (sub) t.append(el("div", "tile__sub", sub));
-    return t;
-  };
-  hero.append(tile("Martin posts, 24h", martin, `${by.x_martinslewis?.last_24h || 0} on X · ${by.instagram?.last_24h || 0} on Instagram`));
-  hero.append(tile("Press stories mentioning him, 24h", press, "Google News and Bing, GB edition"));
 }
 
 function renderFilters() {
@@ -171,23 +132,27 @@ function renderFilters() {
     chip.onclick = () => { state.source = state.source === key ? null : key; loadSignals(); };
     sources.append(chip);
   }
-  const topics = document.getElementById("topic-filters");
-  topics.replaceChildren();
+  // The fourteen CTM categories live in one dropdown rather than a row of chips. A card's category chip sets it too.
+  const select = document.getElementById("topic-select");
+  select.replaceChildren();
+  const any = el("option", null, "All categories"); any.value = ""; select.append(any);
   for (const t of state.summary.topic_names) {
-    const chip = el("button", "chip" + (state.topic === t ? " is-active" : ""), nice(t));
-    chip.title = `Items whose text contains: ${(state.summary.topic_defs[t] || []).join(", ")}`;
-    chip.onclick = () => { state.topic = state.topic === t ? null : t; loadSignals(); };
-    topics.append(chip);
+    const o = el("option", null, nice(t)); o.value = t; o.title = `Items whose text contains: ${(state.summary.topic_defs[t] || []).join(", ")}`;
+    select.append(o);
   }
+  select.value = state.topic || "";
+  select.classList.toggle("is-active", !!state.topic);
+  select.onchange = () => { state.topic = select.value || null; loadSignals(); };
 }
 
+const count = (n, one, many = `${one}s`) => (n === null || n === undefined ? "" : `${num(n)} ${n === 1 ? one : many}`);
 function metricsFor(item) {
   const m = item.metrics || {}, parts = [];
-  if (m.like_count !== undefined) { parts.push(`${num(m.like_count)} likes`, `${num(m.retweet_count)} reposts`, `${num(m.reply_count)} replies`); if (m.impression_count) parts.push(`${num(m.impression_count)} views`); }
-  if (item.source === "instagram") { if (m.likes != null) parts.push(`${num(m.likes)} likes`); if (m.comments != null) parts.push(`${num(m.comments)} comments`); if (m.views) parts.push(`${num(m.views)} plays`); }
-  if (item.source === "mse_forum") parts.push(`${num(m.comments)} comments`, `${num(m.views)} views`, m.board);
-  if (item.source === "reddit") parts.push(`${num(m.score)} points`, `${num(m.comments)} comments`, `r/${m.subreddit}`);
-  if (item.source === "youtube") parts.push(`${num(m.views)} views`, `${num(m.likes)} likes`, `${num(m.comments)} comments`);
+  if (m.like_count !== undefined) { parts.push(count(m.like_count, "like"), count(m.retweet_count, "repost"), count(m.reply_count, "reply", "replies")); if (m.impression_count) parts.push(count(m.impression_count, "view")); }
+  if (item.source === "instagram") { if (m.likes != null) parts.push(count(m.likes, "like")); if (m.comments != null) parts.push(count(m.comments, "comment")); if (m.views) parts.push(count(m.views, "play")); }
+  if (item.source === "mse_forum") parts.push(count(m.comments, "comment"), count(m.views, "view"), m.board);
+  if (item.source === "reddit") parts.push(count(m.score, "point"), count(m.comments, "comment"), `r/${m.subreddit}`);
+  if (item.source === "youtube") parts.push(count(m.views, "view"), count(m.likes, "like"), count(m.comments, "comment"));
   if (item.source === "press" && m.via) parts.push(m.via.replace("_", " "));
   return parts.filter(Boolean);
 }
@@ -203,7 +168,7 @@ function actionList(actions) {
   }
   return ul;
 }
-const LEVERS = { bids: "Paid search bids or query coverage", budgets: "Move spend between product lines", creative: "Ad copy, social or display creative that echoes the advice", content: "Landing pages, guides, SEO", pr: "Get named, respond, partner", watch: "Monitor, no spend yet" };
+const LEVERS = { bids: "Paid search bids or query coverage", budgets: "Move spend between product lines or channels", targeting: "Programmatic audiences, contextual placements, YouTube or connected TV targeting", creative: "Ad copy, display, video or social creative that echoes the advice", content: "Landing pages, guides, SEO", pr: "Get named, respond, partner", watch: "Monitor, no spend yet" };
 function impactList(impact) {
   const wrap = el("div", "brian-view__impacts");
   for (const i of impact) wrap.append(el("span", "impact", [nice(i.product), i.direction === "up" ? "▲ up" : i.direction === "down" ? "▼ down" : i.direction, i.magnitude, i.timing].filter(Boolean).join(" · ")));
@@ -325,7 +290,7 @@ function renderItem(item) {
 
   if (item.title) {
     const h = el("h3", "item__title");
-    if (item.url) { const a = el("a", null, item.title); a.href = item.url; a.target = "_blank"; a.rel = "noopener"; a.append(icon("external")); h.append(a); }
+    if (item.url) { const a = el("a", null, item.title); a.href = item.url; a.target = "_blank"; a.rel = "noopener"; h.append(a); }
     else h.textContent = item.title;
     card.append(h);
   }
@@ -368,8 +333,8 @@ function renderItem(item) {
   const foot = el("div", "item__foot");
   if (item.url) foot.append(outLink(item.url, meta.open, "btn btn--primary"));
   if (expandable) {
-    const b = el("button", "btn" + (isOpen ? " is-on" : ""));
-    b.append(document.createTextNode(isOpen ? "Show less" : item.kind === "article" ? `Read the full article (${num(item.text.length)} chars)` : item.kind === "guide_change" ? "Show the full change" : "Show the full post"));
+    const b = el("button", "btn btn--quiet" + (isOpen ? " is-on" : ""));
+    b.append(document.createTextNode(isOpen ? "Show less" : item.kind === "article" ? "Read the full article" : item.kind === "guide_change" ? "Show the full change" : "Show the full post"));
     b.append(icon("chevron", "ico ico--sm ico--chev"));
     b.onclick = () => { if (isOpen) state.expanded.delete(item.id); else state.expanded.add(item.id); card.replaceWith(renderItem(item)); };
     foot.append(b);
@@ -418,80 +383,113 @@ function renderFeed() {
 function setShowLow(on) { state.showLow = on; document.getElementById("show-low").checked = on; loadSignals(); }
 document.getElementById("show-low").onchange = (e) => setShowLow(e.target.checked);
 
-// Brian's Insights: up to five headlines under the hero, newest first. Click one to open the detail (body,
-// impact, actions, evidence); one open at a time. The Ask Brian box sits at the foot of the strip.
+// Brian's Highlights: one section at the top of the page. The header carries Brian's read of the last 24 hours and
+// the day's counts; beneath it, one headline per channel (Search, Programmatic, SEO), newest per channel, then anything
+// else worth a line, five at most. Click a headline for the detail; one open at a time. Ask Brian sits at the foot.
 const MAX_HEADLINES = 5;
-function renderInsights() {
-  const strip = document.getElementById("insights");
-  const enabled = !!state.insights?.brian_enabled;
-  const seen = new Set(), list = [];
-  for (const ins of state.insights?.insights || []) {
+const CHANNELS = { search: "Search", programmatic: "Programmatic", seo: "SEO" };
+function pickHighlights(all) {
+  const byChannel = {}, others = [], seen = new Set();
+  for (const ins of all) {  // newest first from the API
     const key = (ins.headline || "").trim().toLowerCase();
     if (!key || seen.has(key)) continue;  // the digest can restate a headline across runs; show it once
-    seen.add(key); list.push(ins);
-    if (list.length === MAX_HEADLINES) break;
+    seen.add(key);
+    if (CHANNELS[ins.channel]) { if (!byChannel[ins.channel]) byChannel[ins.channel] = ins; }
+    else others.push(ins);
   }
-  // Rebuild everything except the Ask Brian box, which keeps its question and answer across the minute refresh.
-  for (const c of Array.from(strip.children)) if (c !== askNode) c.remove();
+  return [...Object.keys(CHANNELS).map((c) => byChannel[c]).filter(Boolean), ...others].slice(0, MAX_HEADLINES);
+}
 
-  const head = el("div", "insights__head");
-  const img = el("img", "insights__avatar"); img.src = "brian.png"; img.alt = "Brian";
-  const titles = el("div", "insights__titles");
-  titles.append(el("div", "insights__title", "Brian's Insights"));
-  titles.append(el("div", "insights__sub", !enabled ? "Waiting for the Anthropic key"
-    : list.length ? `${list.length} ${list.length === 1 ? "headline" : "headlines"}, latest ${ago(list[0].created_at)}. Click one for the detail.`
-    : "Reads every new signal each hour"));
+function renderHighlights() {
+  const root = document.getElementById("highlights");
+  const s = state.summary, by = s.by_item_source || {};
+  const enabled = !!state.insights?.brian_enabled;
+  const list = pickHighlights(state.insights?.insights || []);
+  const onX = by.x_martinslewis?.last_24h || 0, onInsta = by.instagram?.last_24h || 0, martin = onX + onInsta;
+  const press = by.press?.last_24h || 0;
+  const forum = (state.spread?.boards || []).reduce((a, b) => a + (b.active_24h || 0), 0);
+  // Rebuild everything except the Ask Brian box, which keeps its question and answer across the minute refresh.
+  for (const c of Array.from(root.children)) if (c !== askNode) c.remove();
+
+  const head = el("div", "highlights__head");
+  const img = el("img", "highlights__avatar"); img.src = "brian.png"; img.alt = "Brian";
+  const titles = el("div", "highlights__titles");
+  titles.append(el("div", "highlights__title", "Brian's Highlights"));
+  const readAt = state.insights?.read_at;
+  titles.append(el("div", "highlights__sub", !enabled ? "Waiting for the Anthropic key" : readAt ? `Last 24 hours · updated ${ago(readAt)}` : "Last 24 hours · first read lands within the hour"));
   head.append(img, titles);
+
+  const stats = el("div", "highlights__stats");
+  const stat = (n, text, title) => { const d = el("div", "hl-stat"); d.append(el("b", null, String(n)), el("span", null, text)); d.title = title; return d; };
+  stats.append(stat(martin, martin === 1 ? "Martin post" : "Martin posts", `${onX} on X and ${onInsta} on Instagram in the last 24 hours`));
+  stats.append(stat(press, press === 1 ? "press story" : "press stories", "Stories mentioning Martin Lewis in the last 24 hours (Google News and Bing, GB edition)"));
+  stats.append(stat(forum, forum === 1 ? "forum thread" : "forum threads", "MSE forum threads with a new comment in the last 24 hours"));
+  head.append(stats);
   if (enabled) {
     const ask = el("button", "btn btn--brian" + (state.askOpen ? " is-on" : ""));
     const bimg = el("img"); bimg.src = "brian.png"; bimg.alt = "";
     ask.append(bimg, document.createTextNode("Ask Brian"), icon("chevron", "ico ico--sm ico--chev"));
     ask.setAttribute("aria-expanded", String(state.askOpen));
-    ask.onclick = () => { state.askOpen = !state.askOpen; renderInsights(); if (state.askOpen) askBox().querySelector("textarea").focus(); };
+    ask.onclick = () => { state.askOpen = !state.askOpen; renderHighlights(); if (state.askOpen) askBox().querySelector("textarea").focus(); };
     head.append(ask);
   }
-  const body = document.createDocumentFragment();
+  // Brian's read of the window, or the counted sentence until he has written one.
+  const brianRead = s.brian && s.brian.read;
+  const counted = [
+    martin ? `Martin posted ${martin} ${martin === 1 ? "time" : "times"} on X and Instagram.` : "Martin has not posted on X or Instagram in the last 24 hours.",
+    `${press} press ${press === 1 ? "story" : "stories"} mentioned him and ${forum} forum ${forum === 1 ? "thread was" : "threads were"} active.`,
+  ].join(" ");
+  const long = !!brianRead && brianRead.length > 300;  // reads written before the 45-word cap
+  const readEl = el("p", "highlights__read" + (long ? " is-clamped" : ""), brianRead || counted);
+  if (long) { readEl.title = "Click to read all of it"; readEl.onclick = () => readEl.classList.toggle("is-clamped"); }
+  head.append(readEl);
+  if (!brianRead) head.append(el("p", "highlights__note", enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read arrives once the Anthropic key is connected."));
+  root.append(head);
+
   if (!list.length) {
-    const wait = el("div", "insights__waiting");
-    wait.append(el("p", null, enabled ? "No insights written yet. The first pass runs within the hour." : "Once the key is in, Brian reads the new signals every hour and writes here what they mean for Compare the Market:"));
+    const wait = el("div", "highlights__waiting");
+    wait.append(el("p", null, enabled ? "No highlights written yet. The first pass runs within the hour." : "Once the key is in, Brian reads the new signals every hour and writes here what they mean for Compare the Market:"));
     const ul = el("ul");
-    for (const t of ["Which product line is affected, and which way demand moves", "How soon, and how big, with the evidence linked", "What to do about bids, budgets and creative"]) ul.append(el("li", null, t));
+    for (const t of ["Which product line is affected, and which way demand moves", "One recommendation each for Search, Programmatic and SEO", "The evidence behind each, linked"]) ul.append(el("li", null, t));
     wait.append(ul);
-    body.append(wait);
+    root.append(wait);
   } else {
     const ol = el("ol", "headlines");
-    list.forEach((ins, i) => ol.append(headlineRow(ins, i + 1)));
-    body.append(ol);
+    for (const ins of list) ol.append(headlineRow(ins));
+    root.append(ol);
   }
-  strip.prepend(head, body);
-  if (enabled) { const box = askBox(); box.hidden = !state.askOpen; if (box.parentNode !== strip) strip.append(box); }
-  else if (askNode && askNode.parentNode === strip) askNode.remove();
+  if (enabled) { const box = askBox(); box.hidden = !state.askOpen; if (box.parentNode !== root) root.append(box); }
+  else if (askNode && askNode.parentNode === root) askNode.remove();
 }
 
-function headlineRow(ins, rank) {
+function headlineRow(ins) {
   const open = state.openInsight === ins.id;
   const li = el("li", "headline" + (open ? " is-open" : ""));
   const btn = el("button", "headline__btn");
   btn.setAttribute("aria-expanded", String(open));
   btn.setAttribute("aria-controls", `insight-${ins.id}`);
-  btn.append(el("span", "headline__rank", String(rank)), el("span", "headline__text", ins.headline || ""));
+  const channel = CHANNELS[ins.channel];
+  btn.append(el("span", "channel " + (channel ? `channel--${ins.channel}` : "channel--other"), channel || "Also"), el("span", "headline__text", ins.headline || ""));
   const meta = el("span", "headline__meta");
   const levers = [...new Set((ins.actions || []).map((a) => a && typeof a === "object" && a.lever).filter(Boolean))];
   for (const l of levers.slice(0, 3)) { const tag = el("span", `lever lever--${l}`, l); tag.title = LEVERS[l] || ""; meta.append(tag); }
-  meta.append(el("span", "headline__when", `${ago(ins.created_at)}${ins.confidence ? ` · ${ins.confidence} confidence` : ""}`));
+  meta.append(el("span", "headline__when", ago(ins.created_at)));
   btn.append(meta, icon("chevron", "ico ico--sm headline__chev"));
-  btn.onclick = () => { state.openInsight = open ? null : ins.id; renderInsights(); };
+  btn.onclick = () => { state.openInsight = open ? null : ins.id; renderHighlights(); };
   li.append(btn);
 
   const detail = el("div", "headline__detail"); detail.id = `insight-${ins.id}`; detail.hidden = !open;
   if (ins.body) detail.append(el("p", "headline__body", ins.body));
   if (Array.isArray(ins.impact) && ins.impact.length) detail.append(el("div", "brian-view__section", "Impact on CTM"), impactList(ins.impact));
   if (Array.isArray(ins.actions) && ins.actions.length) detail.append(el("div", "brian-view__section", "What CTM could do"), actionList(ins.actions));
-  if (Array.isArray(ins.evidence) && ins.evidence.length) {
-    const ev = el("div", "insight__evidence"); ev.append(document.createTextNode("Evidence: "));
-    ins.evidence.slice(0, 5).forEach((id, i) => { if (i) ev.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; ev.append(a); });
-    detail.append(ev);
+  const foot = el("div", "insight__evidence");
+  const evidence = Array.isArray(ins.evidence) ? ins.evidence.slice(0, 5) : [];
+  if (ins.confidence) foot.append(document.createTextNode(`Confidence ${ins.confidence}${evidence.length ? " · " : ""}`));
+  if (evidence.length) {
+    foot.append(document.createTextNode("Evidence: "));
+    evidence.forEach((id, i) => { if (i) foot.append(document.createTextNode(", ")); const a = el("a", null, `#${id}`); a.href = `/api/items/${id}`; a.target = "_blank"; a.rel = "noopener"; a.title = "Open the stored item"; foot.append(a); });
   }
+  if (foot.childNodes.length) detail.append(foot);
   li.append(detail);
   return li;
 }
@@ -506,7 +504,7 @@ function askBox() {
   const send = el("button", "btn btn--primary", "Ask");
   const out = el("div", "ask__answer"); out.hidden = true;
   const suggestions = el("div", "filters");
-  for (const q of ["What should CTM do about energy this week?", "Which product line is most exposed right now?", "Has anything Martin said been picked up by the press?"]) {
+  for (const q of ["What should CTM do about energy this week?", "What should the programmatic team run this week?", "Which product line is most exposed right now?"]) {
     const c = el("button", "chip", q); c.onclick = () => { ta.value = q; send.click(); }; suggestions.append(c);
   }
   send.onclick = async () => {
@@ -748,6 +746,9 @@ async function loadSources() {
   renderLive(); renderSources();
 }
 
+const whenCell = (iso, text) => { const td = el("td", null, text); if (iso) td.title = fmtWhen(iso); return td; };
+// Error text stays on one line; the full message is on hover.
+const errCell = (text) => { const td = el("td", "err", text || ""); if (text) td.title = text; return td; };
 function renderSources() {
   const root = document.getElementById("sources");
   root.replaceChildren();
@@ -760,15 +761,15 @@ function renderSources() {
     const row = el("tr");
     const src = el("td"); const wrap = el("span", "src"); wrap.append(icon((SOURCE_META[s.source] || {}).glyph || "press", "ico ico--lg"), document.createTextNode(s.label)); src.append(wrap); row.append(src);
     row.append(el("td", null, s.enabled ? cadence(s.every_minutes) : "off"));
-    row.append(el("td", null, s.last_run ? `${fmtWhen(s.last_run.finished_at)} (${ago(s.last_run.finished_at)})` : "never"));
+    row.append(whenCell(s.last_run && s.last_run.finished_at, s.last_run ? ago(s.last_run.finished_at) : "never"));
     const res = el("td");
     if (!s.enabled) res.append(el("span", "pill pill--off", "disabled"));
     else if (!s.last_run) res.append(el("span", "pill pill--off", "pending"));
     else { res.append(el("span", `pill ${s.last_run.ok ? "pill--ok" : "pill--bad"}`, s.last_run.ok ? "ok" : "failed")); if (s.last_run.ok) res.append(document.createTextNode(` ${s.last_run.items_new} new`)); }
     row.append(res);
-    row.append(el("td", null, s.next_run ? `${fmtWhen(s.next_run)} (${until(s.next_run)})` : s.enabled ? "scheduler off" : ""));
+    row.append(whenCell(s.next_run, s.next_run ? until(s.next_run) : s.enabled ? "scheduler off" : ""));
     row.append(el("td", "num", s.total != null ? num(s.total) : ""));
-    row.append(el("td", "err", !s.enabled ? s.reason : s.last_run && !s.last_run.ok ? s.last_run.error : ""));
+    row.append(errCell(!s.enabled ? s.reason : s.last_run && !s.last_run.ok ? s.last_run.error : ""));
     const runCell = el("td");
     if (s.enabled) {
       const b = el("button", "btn btn--row-run", running && state.run.current === s.source ? "Running…" : "Run");
@@ -788,8 +789,8 @@ function renderSources() {
       : "Brian is off: ANTHROPIC_API_KEY is not set.");
     root.append(line);
   }
-  const topics = el("div", "section");
-  topics.append(el("h3", "section-title", "How items get a CTM category"));
+  const topics = el("details", "explainer");
+  topics.append(el("summary", null, "How items get a CTM category"));
   topics.append(el("p", "lede", "One category per Compare the Market sub-brand, named as in the CTM dashboard. An item is tagged when its title or text contains one of these phrases as a whole word (case-insensitive, plurals allowed). Brian's View gives his own corrected categories. Edit the lists in sources.yaml."));
   const tt = el("table", "data");
   const th = el("tr"); th.append(el("th", null, "Sub-brand"), el("th", null, "Phrases")); tt.append(th);
@@ -806,7 +807,7 @@ function renderSources() {
     const row = el("tr");
     row.append(el("td", null, fmtWhen(r.finished_at || r.started_at)), el("td", null, label(r.source)));
     const res = el("td"); res.append(el("span", `pill ${r.ok ? "pill--ok" : "pill--bad"}`, r.ok ? "ok" : "failed")); row.append(res);
-    row.append(el("td", "num", String(r.items_new ?? "")), el("td", "err", r.error || ""));
+    row.append(el("td", "num", String(r.items_new ?? "")), errCell(r.error || ""));
     rt.append(row);
   }
   runs.append(tableBox(rt, true));
@@ -817,8 +818,8 @@ function renderMartometerExplainer(root) {
   const x = state.summary.martometer;
   if (!x) return;
   const voice = x.voice || {}, refs = x.reach_refs || {}, floor = x.reach_floor ?? 0.7, brian = x.ctm_brian || {}, kw = x.ctm_keywords || {};
-  const sec = el("div", "section"); sec.id = "martometer-explainer";
-  sec.append(el("h3", "section-title", "How the Martometer works"));
+  const sec = el("details", "explainer"); sec.id = "martometer-explainer";
+  sec.append(el("summary", null, "How the Martometer works"));
   sec.append(el("p", "lede", `Every card carries a Martometer: how relevant that item is to Compare the Market's business, out of 10. It is a multiple of two factors, how much the item has to do with Martin and how much it has to do with CTM, so a Martin post about pensions and a forum thread about broadband that never mentions him both score low: each is missing one half. The feed hides anything under ${x.hide_below} unless "Show low relevance" is switched on.`));
   sec.append(el("pre", "formula", `Martometer = 10 × Martin × CTM\nMartin     = voice × (${floor} + ${(1 - floor).toFixed(1)} × reach)        who is speaking, nudged by how far it travelled\nCTM        = Brian's call if he has read it, else keywords   is it CTM's business?`));
 
@@ -875,7 +876,7 @@ function renderMartometerExplainer(root) {
   sec.append(ex);
   sec.append(el("p", "lede small", "The numbers live in sources.yaml under martometer; this page reads them from there, and scores are worked out when items are read, so a change shows at once."));
   root.append(sec);
-  if (state.scrollTo === "martometer-explainer") { state.scrollTo = null; requestAnimationFrame(() => sec.scrollIntoView({ behavior: "smooth", block: "start" })); }
+  if (state.scrollTo === "martometer-explainer") { state.scrollTo = null; sec.open = true; requestAnimationFrame(() => sec.scrollIntoView({ behavior: "smooth", block: "start" })); }
 }
 
 // ---------- run now ----------

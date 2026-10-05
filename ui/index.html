@@ -35,7 +35,7 @@
       <img class="brand__logo" src="logo.png" alt="">
       <span class="brand__text">
         <span class="wordmark">Martin Monitor</span>
-        <span class="brand__sub">What Martin Lewis and MSE are saying, and where it is spreading</span>
+        <span class="brand__sub">What Martin Lewis and MSE are saying, and where it spreads</span>
       </span>
     </a>
     <nav class="tabs" role="tablist" aria-label="Sections">
@@ -53,15 +53,14 @@
 
   <main>
     <section id="panel-signals" class="panel" role="tabpanel">
-      <div class="hero" id="hero"></div>
-      <section class="insights card" id="insights" aria-label="Brian's Insights"></section>
+      <section class="highlights card" id="highlights" aria-label="Brian's Highlights"></section>
       <div class="toolbar">
         <div class="toolbar__row">
           <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search everything (e.g. price cap, Ofgem, renewal)" autocomplete="off"></label>
+          <select id="topic-select" class="select" aria-label="Filter by CTM category"></select>
           <label class="switch" title="Items under the Martometer line are hidden by default. Switch on to see everything."><input type="checkbox" id="show-low"><span class="switch__track"></span><span>Show low relevance</span></label>
         </div>
-        <div class="filters" id="source-filters" aria-label="Filter by source"></div>
-        <div class="filters filters--topics" id="topic-filters" aria-label="Filter by CTM category"></div>
+        <div class="filters filters--sources" id="source-filters" aria-label="Filter by source"></div>
       </div>
       <section class="feed" id="feed" aria-live="polite"></section>
     </section>
@@ -70,7 +69,7 @@
       <div class="panel__head">
         <div>
           <h2>Search demand</h2>
-          <p class="lede">Google Trends interest for a query per CTM sub-brand, with a dot wherever Martin posted on that sub-brand. Worldwide index, 0 to 100 against the peak in the window. Source: Google Trends via Decodo.</p>
+          <p class="lede">Google Trends interest per CTM sub-brand, 0 to 100 against the peak in the window. A dot marks a Martin post on that sub-brand.</p>
         </div>
         <div class="segmented" id="resolution" role="group" aria-label="Window">
           <button class="seg is-active" data-res="weekly">12 months, weekly</button>
@@ -89,7 +88,7 @@
     </section>
 
     <section id="panel-sources" class="panel" role="tabpanel" hidden>
-      <div class="panel__head"><div><h2>Sources and cadence</h2><p class="lede">Every source, how often it runs, when it last ran and when it runs next. Times are your local time. The Run buttons need the admin token.</p></div></div>
+      <div class="panel__head"><div><h2>Sources and cadence</h2><p class="lede">Every source, its cadence, last run and next run. Hover a time for the exact moment. The Run buttons need the admin token.</p></div></div>
       <div id="sources"></div>
     </section>
   </main>

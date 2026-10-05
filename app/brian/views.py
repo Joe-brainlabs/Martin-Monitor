@@ -24,9 +24,10 @@ class Impact(BaseModel):
 
 
 class Action(BaseModel):
-    lever: Literal["bids", "budgets", "creative", "content", "pr", "watch"] = Field(
-        description="The lever CTM pulls: bids (paid search bids or query coverage), budgets (move spend between product lines), "
-        "creative (ad copy, social or display creative that echoes the advice), content (landing pages, guides, SEO), "
+    lever: Literal["bids", "budgets", "targeting", "creative", "content", "pr", "watch"] = Field(
+        description="The lever CTM pulls: bids (paid search bids or query coverage), budgets (move spend between product lines "
+        "or channels, lift or cut pacing), targeting (programmatic audiences, contextual placements, YouTube or connected TV targeting), "
+        "creative (ad copy, display, video or social creative that echoes the advice), content (landing pages, guides, SEO), "
         "pr (get named, respond, partner), watch (monitor, no spend yet)"
     )
     text: str = Field(description="The action in one plain sentence")
