@@ -136,11 +136,13 @@ function renderHero() {
     topics.length ? `In play: ${topics.slice(0, 3).map(([t]) => nice(t)).join(", ")}.` : "",
     `${press} press ${press === 1 ? "story" : "stories"} mentioned him and ${forum} forum ${forum === 1 ? "thread was" : "threads were"} active.`,
   ].filter(Boolean).join(" ");
-  const readEl = el("p", "hero__text" + (brianRead && brianRead.length > 320 ? " is-clamped" : ""), brianRead || sentence);
-  readEl.title = brianRead && brianRead.length > 320 ? "Click to read all of it" : "";
+  const readEl = el("p", "hero__text" + (brianRead && brianRead.length > 360 ? " is-clamped" : ""), brianRead || sentence);
+  readEl.title = brianRead && brianRead.length > 360 ? "Click to read all of it" : "";
   readEl.onclick = () => readEl.classList.toggle("is-clamped");
   body.append(readEl);
-  body.append(el("p", "hero__note", brianRead ? `${sentence} Written ${ago(s.brian.read_at)} by Brian (${s.brian.model}).` : state.insights?.brian_enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
+  // No summary line under Brian's read: the counts sit in the tiles and the categories in the filters. The note
+  // only appears while there is no read yet, to say why.
+  if (!brianRead) body.append(el("p", "hero__note", state.insights?.brian_enabled ? "Counted from the feed. Brian's first read lands within the hour." : "Counted from the feed. Brian's own read of what it means for Compare the Market arrives once the Anthropic key is connected."));
   read.append(avatar, body);
   hero.append(read);
 
@@ -151,18 +153,7 @@ function renderHero() {
     return t;
   };
   hero.append(tile("Martin posts, 24h", martin, `${by.x_martinslewis?.last_24h || 0} on X · ${by.instagram?.last_24h || 0} on Instagram`));
-  const cats = el("div", "tile");
-  cats.append(el("div", "tile__label", "Categories in play"), el("div", "tile__num", String(topics.length)));
-  const chips = el("div", "tile__chips");
-  for (const [t, n] of topics.slice(0, 4)) {
-    const c = el("button", "chip", `${nice(t)} ${n}`);
-    c.onclick = () => { state.topic = t; loadSignals(); };
-    chips.append(c);
-  }
-  cats.append(chips);
-  hero.append(cats);
-  hero.append(tile("Press stories, 24h", press, "Google News and Bing, GB edition"));
-  hero.append(tile("Forum threads active, 24h", forum, (state.spread?.boards || []).slice(0, 2).map((b) => `${b.board} ${b.active_24h}`).join(" · ")));
+  hero.append(tile("Press stories mentioning him, 24h", press, "Google News and Bing, GB edition"));
 }
 
 function renderFilters() {
@@ -529,12 +520,33 @@ function lineChart(container, series, posts, res) {
   svg.append(svgEl("path", { d: series.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" "), class: "chart__line" }));
   const groups = new Map();
   for (const p of posts) { const i = indexFor(series, p.published_at.slice(0, 10), res); if (i >= 0) groups.set(i, [...(groups.get(i) || []), p]); }
+  // One post in the period: the dot opens it. Several: the dot lists them in a popover, each a link.
+  const pop = el("div", "chart__pop"); pop.hidden = true;
+  const showPosts = (i, items) => {
+    pop.replaceChildren();
+    const head = el("div", "chart__pop-head");
+    head.append(el("span", null, `${items.length} Martin posts, ${series[i].label}`));
+    const close = el("button", "chart__pop-close", "×"); close.title = "Close"; close.onclick = (e) => { e.stopPropagation(); pop.hidden = true; };
+    head.append(close); pop.append(head);
+    for (const p of items) {
+      const a = el("a", "chart__pop-link"); a.href = p.url; a.target = "_blank"; a.rel = "noopener";
+      a.append(icon((SOURCE_META[p.source] || {}).glyph || "x", "ico ico--sm"), el("span", null, (p.text || p.title || "Open the post").replace(/\s+/g, " ").slice(0, 110)), icon("external", "ico ico--sm ico--out"));
+      pop.append(a);
+    }
+    // keep the popover inside the card: it is 280px wide and centred on the dot
+    const cardW = container.clientWidth || 340, half = 150;
+    pop.style.left = `${Math.max(half, Math.min(cardW - half, (x(i) / W) * cardW))}px`;
+    pop.hidden = false;
+  };
+  container.onclick = (e) => { if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true; };
   for (const [i, items] of groups) {
     const g = svgEl("g", { class: "chart__marker" });
     g.append(svgEl("circle", { cx: x(i), cy: y(series[i].value), r: 6, class: "chart__marker-ring" }));
-    const dot = svgEl("circle", { cx: x(i), cy: y(series[i].value), r: 4.5, class: "chart__marker-dot" });
+    const dot = svgEl("circle", { cx: x(i), cy: y(series[i].value), r: 4.5, class: "chart__marker-dot", role: "link", tabindex: "0" });
     const title = svgEl("title"); title.textContent = items.map((p) => (p.text || "").slice(0, 120)).join("\n\n"); dot.append(title);
-    dot.onclick = () => window.open(items[0].url, "_blank", "noopener");
+    const open = (e) => { e.stopPropagation(); if (items.length === 1) window.open(items[0].url, "_blank", "noopener"); else showPosts(i, items); };
+    dot.onclick = open;
+    dot.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } };
     g.append(dot);
     if (items.length > 1) g.append(svgText(x(i), y(series[i].value) - 10, String(items.length), "chart__marker-label", "middle"));
     svg.append(g);
@@ -543,7 +555,7 @@ function lineChart(container, series, posts, res) {
   const hdot = svgEl("circle", { class: "chart__hover-dot", r: 4, style: "display:none" });
   svg.append(cross, hdot);
   const tip = el("div", "chart__tip"); tip.style.display = "none";
-  container.append(svg, tip);
+  container.append(svg, tip, pop);
   svg.addEventListener("mousemove", (e) => {
     const rect = svg.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * W;
@@ -553,7 +565,7 @@ function lineChart(container, series, posts, res) {
     hdot.setAttribute("cx", x(best)); hdot.setAttribute("cy", y(series[best].value)); hdot.style.display = "";
     tip.replaceChildren(document.createTextNode(`${series[best].label}: ${series[best].value ?? "n/a"}`));
     const here = groups.get(best);
-    if (here) tip.append(el("small", null, `${here.length} Martin ${here.length === 1 ? "post" : "posts"} · click the dot to open`));
+    if (here) tip.append(el("small", null, here.length === 1 ? "1 Martin post · click the dot to open it" : `${here.length} Martin posts · click the dot to list them`));
     tip.style.left = `${(x(best) / W) * 100}%`; tip.style.display = "";
   });
   svg.addEventListener("mouseleave", () => { cross.style.display = "none"; hdot.style.display = "none"; tip.style.display = "none"; });
@@ -774,7 +786,8 @@ function renderMartometerExplainer(root) {
     ["Any other MSE forum thread", voice.forum], ["Any other Reddit post", voice.reddit],
   ]) { const r = el("tr"); r.append(el("td", null, text), el("td", "num", String(v))); vt.append(r); }
   mcard.append(vt);
-  mcard.append(el("p", "lede small", `Reach runs from 0 to 1 on a log scale of the engagement we hold, against what counts as a full-reach day for each source: X ${num(refs.x)} impressions, Instagram ${num(refs.instagram)} plays, YouTube ${num(refs.youtube)} views, MSE forum ${num(refs.mse_forum)} comments, Reddit ${num(refs.reddit)} points and comments. A post nobody has seen keeps ${Math.round(floor * 100)}% of its voice score, so reach nudges rather than decides. Press, MSE news and guide changes carry no engagement numbers and take the midpoint.`));
+  const ref = (k) => refs[k] || {};
+  mcard.append(el("p", "lede small", `Reach is relative to what is normal for each source, on a log scale: a typical post scores 0.5, a big day scores 1, and a post as far below typical as a big day is above it scores 0. Typical and big day: X ${num(ref("x").typical)} and ${num(ref("x").big)} impressions, Instagram ${num(ref("instagram").typical)} and ${num(ref("instagram").big)} plays, YouTube ${num(ref("youtube").typical)} and ${num(ref("youtube").big)} views, MSE forum ${num(ref("mse_forum").typical)} and ${num(ref("mse_forum").big)} comments, Reddit ${num(ref("reddit").typical)} and ${num(ref("reddit").big)} points and comments. A post nobody has seen keeps ${Math.round(floor * 100)}% of its voice score and reach decides the rest, so Martin's loud moments float up and his quiet ones sit near the line. Press, MSE news and guide changes carry no engagement numbers and take the midpoint. X engagement is re-read at 1, 6 and 24 hours, so a post's score climbs through the day.`));
   grid.append(mcard);
 
   const ccard = el("div", "card");
@@ -790,7 +803,7 @@ function renderMartometerExplainer(root) {
   sec.append(grid);
 
   // Worked examples, computed here with the same formula and constants so they can never drift from the real scores.
-  const reach = (n, ref) => Math.min(1, Math.log10(1 + n) / Math.log10(1 + ref));
+  const reach = (n, r) => (!r || !n ? 0 : Math.max(0, Math.min(1, 0.5 + 0.5 * Math.log(n / r.typical) / Math.log(r.big / r.typical))));
   const martin = (v, r) => v * (floor + (1 - floor) * (r == null ? 0.5 : r));
   const ex = el("div", "card");
   ex.append(el("h3", "section-title", "Worked examples (made with the numbers above)"));
@@ -799,6 +812,8 @@ function renderMartometerExplainer(root) {
   for (const [text, m, c] of [
     ["Martin's Instagram video on the January energy cap forecast, 200k plays, Brian: high", martin(voice.martin, reach(200000, refs.instagram)), brian.high],
     ["Martin on X about mortgage deals ending, 170k impressions, not read yet, keyword Mortgages", martin(voice.martin, reach(170000, refs.x)), kw["1"]],
+    ["The same mortgage post if it had only reached 3k impressions", martin(voice.martin, reach(3000, refs.x)), kw["1"]],
+    ["A Martin post that hits a million impressions on a CTM topic, Brian: high", martin(voice.martin, reach(1000000, refs.x)), brian.high],
     ["Martin on X about the State Pension triple lock, 300k impressions, Brian: none", martin(voice.martin, reach(300000, refs.x)), brian.none],
     ["A regional paper on Martin's six-month mortgage rule, keyword Mortgages", martin(voice.press, null), kw["1"]],
     ["An MSE forum thread on the Energy board quoting Martin, 6 comments, keyword Energy", martin(voice.names_martin, reach(6, refs.mse_forum)), kw["1"]],
@@ -889,4 +904,4 @@ document.getElementById("search").addEventListener("input", (e) => {
 });
 setTab(["signals", "demand", "spread", "sources"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "signals");
 pollRun();  // pick up a run started from another tab
-setInterval(() => { if (state.tab === "signals") loadSignals(); }, 60000);
+setInterval(() => { if (state.tab === "signals") loadTab("signals"); }, 60000);  // loadTab catches a dead API and says so in the top bar

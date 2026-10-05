@@ -50,11 +50,11 @@ Every item gets a relevance score out of 10, computed when it is read (never sto
 
 ```
 Martometer = 10 × Martin × CTM
-Martin     = voice × (0.7 + 0.3 × reach)      who is speaking, nudged by how far it travelled
+Martin     = voice × (0.5 + 0.5 × reach)      who is speaking, scaled by how far it travelled
 CTM        = Brian's call if he has read it, else the keyword categories
 ```
 
-Voice: Martin's own channels 1.0, MSE's official output 0.85, a press story about him 0.7, a forum or Reddit thread that names Martin or MSE 0.75, any other forum thread 0.25, any other Reddit post 0.15. Reach is 0 to 1 on a log scale of the engagement we hold against a full-reach reference per source (X one million impressions, Instagram one million plays, YouTube 500k views, forum 100 comments, Reddit 1,000 points plus comments); sources with no engagement data take the midpoint. CTM: Brian's relevance none 0.05, low 0.35, medium 0.7, high 1.0; otherwise no keyword category 0.1, one 0.6, two or more 0.75.
+Voice: Martin's own channels 1.0, MSE's official output 0.85, a press story about him 0.7, a forum or Reddit thread that names Martin or MSE 0.75, any other forum thread 0.25, any other Reddit post 0.15. Reach is relative to what is normal for the source, on a log scale: a typical post scores 0.5, a big day 1.0, and a post as far below typical as a big day is above it scores 0 (X 50k and 1m impressions, Instagram 200k and 1.5m plays, YouTube 40k and 500k views, forum 5 and 100 comments, Reddit 30 and 1,000 points plus comments). Sources with no engagement data take the midpoint. On the local data that puts a quiet Martin post on a CTM topic at about 3.1 and a loud one at 5.4 before Brian reads it. CTM: Brian's relevance none 0.05, low 0.35, medium 0.7, high 1.0; otherwise no keyword category 0.1, one 0.6, two or more 0.75.
 
 It is a product on purpose: a Martin post about pensions and a forum thread about broadband that never mentions him both score low. On the 1 October database it keeps 4 of 300 forum threads, 22 of 104 press stories and 0 of 5 Reddit posts above the line (3.0), while every one of Martin's posts on a CTM topic stays. All the numbers are in `sources.yaml` under `martometer`, and the Sources tab renders the formula from the same block. `GET /api/feed?hide_low=1` applies the line and returns `hidden`; `min_score=` sets your own.
 

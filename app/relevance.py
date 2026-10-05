@@ -1,7 +1,7 @@
 """The Martometer: how relevant an item is to Compare the Market's business, 0 to 10.
 
     Martometer = 10 x Martin x CTM
-    Martin (0 to 1) = voice x (floor + (1 - floor) x reach)   who is speaking, nudged by how far it travelled
+    Martin (0 to 1) = voice x (floor + (1 - floor) x reach)   who is speaking, scaled by how far it travelled
     CTM    (0 to 1) = Brian's relevance call when he has read the item, otherwise the keyword categories
 
 It is a multiple on purpose: a Martin post about pensions and a forum thread about broadband that never
@@ -45,8 +45,20 @@ def _voice(item: dict) -> tuple[float, str]:
     return float(VOICE.get("reddit", 0.15)), "Reddit post, Martin not named"
 
 
+def reach_from(n: int | float | None, ref: dict | None) -> float | None:
+    """0 to 1 relative to what is normal for the source: a typical post scores 0.5, a big day 1.0, and a post as far
+    below typical as a big day is above it scores 0, on a log scale. So reach says how loud this is for this source,
+    not how big the raw number is."""
+    if not ref:
+        return None
+    typical, big = float(ref.get("typical", 1)), float(ref.get("big", 10))
+    if not n or n <= 0 or big <= typical:
+        return 0.0
+    return max(0.0, min(1.0, 0.5 + 0.5 * math.log(n / typical) / math.log(big / typical)))
+
+
 def _reach(item: dict) -> tuple[float | None, str]:
-    """0 to 1 on a log scale against the source's full-reach reference; None when the source has no engagement data."""
+    """Reach for one item (see reach_from); None when the source carries no engagement data."""
     m = item.get("metrics") or {}
     source = item["source"]
     if source.startswith("x_"):
@@ -61,10 +73,10 @@ def _reach(item: dict) -> tuple[float | None, str]:
         n, ref, what = (m.get("score") or 0) + (m.get("comments") or 0), REACH_REFS.get("reddit"), "points and comments"
     else:
         return None, "no engagement data"
-    if not ref:
+    reach = reach_from(n, ref)
+    if reach is None:
         return None, "no engagement data"
-    n = max(0, int(n or 0))
-    return min(1.0, math.log10(1 + n) / math.log10(1 + ref)), f"{n:,} {what}"
+    return reach, f"{max(0, int(n or 0)):,} {what}"
 
 
 def _ctm(item: dict) -> tuple[float, str]:

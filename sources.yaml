@@ -145,7 +145,7 @@ topics:
 
 # Martometer: how relevant an item is to CTM's business, 0 to 10, shown on every card.
 #   Martometer = 10 x Martin x CTM
-#   Martin = voice x (reach_floor + (1 - reach_floor) x reach)     who is speaking, nudged by how far it travelled
+#   Martin = voice x (reach_floor + (1 - reach_floor) x reach)     who is speaking, scaled by how far it travelled
 #   CTM    = Brian's relevance call when he has read the item, otherwise how many CTM categories the keywords matched
 # The Sources tab explains the formula from these numbers, so edit here and the page follows.
 martometer:
@@ -158,12 +158,12 @@ martometer:
     forum: 0.25              # any other MSE forum thread
     reddit: 0.15             # any other Reddit post
   mention_terms: [martin lewis, martin, money show, moneysavingexpert, money saving expert]
-  reach_floor: 0.7           # a post nobody has seen keeps 70% of its voice score
-  reach_refs:                # engagement that counts as a full-reach day, on a log scale
-    x: 1000000               # impressions
-    instagram: 1000000       # plays, or likes x 15 for a photo
-    youtube: 500000          # views
-    mse_forum: 100           # comments
-    reddit: 1000             # points plus comments
+  reach_floor: 0.5           # a post nobody has seen keeps half its voice score; reach decides the other half
+  reach_refs:                # what counts as a typical post (reach 0.5) and a big day (reach 1.0) for each source, log scale.
+    x: {typical: 50000, big: 1000000}          # impressions (likes x 100 when impressions are missing)
+    instagram: {typical: 200000, big: 1500000} # plays (likes x 15 for a photo)
+    youtube: {typical: 40000, big: 500000}     # views
+    mse_forum: {typical: 5, big: 100}          # comments
+    reddit: {typical: 30, big: 1000}           # points plus comments
   ctm_brian: {none: 0.05, low: 0.35, medium: 0.7, high: 1.0}    # when Brian has read it, his call wins
   ctm_keywords: {0: 0.1, 1: 0.6, 2: 0.75}                        # otherwise: CTM categories matched by keyword (2 means two or more)
